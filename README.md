@@ -108,3 +108,15 @@ Após instalar o **Data Agent Kit**:
 5. Quando estiver confiante no funcionamento do agente e quiser aprovar ações automaticamente, ative o **yolo mode** com `Ctrl+Y`.
 
    > No yolo mode o agente executa comandos sem pedir confirmação. Use com cuidado e apenas em ambientes de desenvolvimento.
+
+## Custos de Nuvem
+
+O uso dos serviços Google Cloud envolvidos neste setup — como BigQuery, Dataform, Cloud Composer, Cloud Storage, entre outros — está sujeito a cobrança conforme os [preços do Google Cloud](https://cloud.google.com/pricing). Consulte a documentação de cada serviço para entender os modelos de precificação e os limites do free tier.
+
+Além disso, ao configurar o Gemini CLI para utilizar o **Vertex AI** (via `/auth vertex`), as chamadas ao modelo consomem tokens que são cobrados de acordo com os [preços da Gemini API no Vertex AI](https://cloud.google.com/vertex-ai/generative-ai/pricing). O consumo de tokens pode crescer rapidamente em sessões longas ou no yolo mode, onde o agente executa ações sem confirmação.
+
+> Monitore o consumo do seu projeto de desenvolvimento pelo [console de billing do GCP](https://console.cloud.google.com/billing) e configure alertas de orçamento para evitar custos inesperados.
+
+## Licença
+
+Você é livre para copiar, modificar e distribuir este conteúdo sob os termos da licença Apache 2.0. Consulte o arquivo `LICENSE` para mais detalhes.
