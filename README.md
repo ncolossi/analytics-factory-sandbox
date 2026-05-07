@@ -6,7 +6,7 @@ Setup básico para desenvolvimento agêntico de Data & Analytics em Google Cloud
 
 O diretório `guidelines/` contém documentação de referência sobre arquitetura, nomenclaturas, padrões de transformação e orquestração. Esses guidelines servem como contexto para os agentes de IA e podem — e devem — ser ajustados para refletir as regras, ferramentas e convenções específicas de cada cenário ou organização.
 
-Os arquivos de instrução para agentes (`GEMINI.md`, `CLAUDE.md`, etc.) referenciam esses guidelines para garantir que o código gerado siga os padrões definidos.
+Os arquivos de instrução para agentes (`GEMINI.md`, etc.) referenciam esses guidelines para garantir que o código gerado siga os padrões definidos.
 
 ## Setup
 
