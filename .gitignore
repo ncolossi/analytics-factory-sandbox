@@ -1,0 +1,25 @@
+# logs
+*.log
+
+# local files
+*.local.*
+
+# terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+tfplan
+
+# dataform
+node_modules/
+.df-credentials.json
+.dataform/
