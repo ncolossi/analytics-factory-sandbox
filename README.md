@@ -2,6 +2,8 @@
 
 Setup básico para desenvolvimento agêntico de Data & Analytics em Google Cloud, apoiado por ferramentas como o **Gemini CLI** e extensões de IDE que aceleram a criação e manutenção de pipelines de dados com assistência de IA.
 
+> **Nota:** Este repositório está em desenvolvimento ativo.
+
 ## Guidelines
 
 O diretório `guidelines/` contém documentação de referência sobre arquitetura, nomenclaturas, padrões de transformação e orquestração. Esses guidelines servem como contexto para os agentes de IA e podem — e devem — ser ajustados para refletir as regras, ferramentas e convenções específicas de cada cenário ou organização.
