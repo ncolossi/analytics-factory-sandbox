@@ -1,4 +1,11 @@
-# Agentic Data Development: Diretrizes Gemini
+# Agentic Data Development: Diretrizes Gerais
+
+@guidelines/lake-definition.md
+@guidelines/transformations.md
+@guidelines/orchestration.md
+@guidelines/project-topology.md
+@guidelines/repo-structure.md
+@guidelines/api-ingestion.md
 
 Este repositório segue uma arquitetura rigorosa para construção de data pipelines utilizando a **Medallion Architecture (Bronze -> Silver -> Gold)**. Toda manipulação de dados, processos de ELT e até cópias de dados entre datasets DEVEM ser executados através do **Dataform**, orquestrados via **Cloud Composer (Airflow)**.
 
@@ -8,7 +15,6 @@ Sempre que estiver gerando código ou auxiliando neste repositório, você DEVE 
 
 1. **Dataform é o Motor**:
    - **Toda operação de dados que envolva o BigQuery deve ser implementada exclusivamente via Dataform.**
-   - NÃO utilizar `bq cp`, `CREATE TABLE AS SELECT` manual, scheduled queries ou scripts SQL genéricos.
    - Deve-se usar materialização incremental sempre que possível. Full refresh deve ser restrito a tabelas de dimensão pequenas ou bootstrap inicial.
    - Referenciar todas as tabelas usando `${ref("schema", "table")}` ou `${self()}` em queries incrementais.
    - Nunca hardcodar nomes de tabelas.
@@ -22,35 +28,28 @@ Sempre que estiver gerando código ou auxiliando neste repositório, você DEVE 
 3. **Arquitetura Mono-Repo**:
    - **Transformação**: Somente lógica ELT do Dataform pertence a `transformation/dataform/definitions/`.
    - **Orquestração**: Somente DAGs do Airflow e scripts utilitários pertencem a `orchestration/airflow/`.
+   - **Ingestão**: Somente Cloud Run Jobs de ingestão de APIs pertencem a `ingestion/cloudrun/`.
    - Garantir separação estrita de responsabilidades. Não misturar código de camadas diferentes.
 
-## O Medallion Lakehouse
+## Anti-Padrões: O Que NUNCA Fazer
 
-- **Bronze (Raw)**: Schema-on-read, sem transformações, somente append. Deve incluir `_ingestion_timestamp`, `_source_file` e `_batch_id`. Configurações do Dataform devem ser `type: "declaration"`.
-- **Silver (Cleaned)**: Dados deduplicados, tipados e conformados. Usa `type: "table"` ou `type: "incremental"`. Deve incluir `_loaded_at` e `_source_table`. Incluir assertions do Dataform (`uniqueKey`, `nonNull`). Descrições de tabela e colunas em português são obrigatórias.
-- **Gold (Business-Ready)**: Dados agregados e modelados (dim, fact, agg). Usa `type: "table"` ou `type: "incremental"`. Deve incluir `_last_updated_at`. Incluir assertions do Dataform. Descrições de tabela e colunas em português são obrigatórias.
-- **Staging**: Lógica intermediária. Deve ser `type: "view"`. Nunca consumido fora de sua própria camada.
-
-## Nomenclaturas e Organização
-
-- **Datasets**: `{layer}_{domain}` (ex.: `bronze_erp`, `silver_sales`, `gold_finance`).
-- **Tabelas**: Substantivos no plural para entidades (`orders`, `customers`). Camada gold usa prefixos: `dim_`, `fact_`, `agg_`. Staging usa `stg_`.
-- **Arquivos**:
-  - Um arquivo `.sqlx` do Dataform por tabela, nomeado exatamente como a tabela de saída.
-  - Uma DAG do Airflow por arquivo `.py`, nomeada `{domain}__{pipeline}`.
-
-## Espelhamento de Domínios
-
-Os domínios devem ser espelhados entre os diretórios `transformation` e `orchestration`. Se um domínio `sales` existe no Dataform, deve haver uma pasta `sales` correspondente nas DAGs do Airflow.
-
-Exemplo:
-`transformation/dataform/definitions/silver/sales/` -> `orchestration/airflow/dags/sales/`
+1. **NÃO utilizar `bq cp`, `CREATE TABLE AS SELECT` manual, scheduled queries ou scripts SQL genéricos.** Toda operação de dados no BigQuery passa pelo Dataform.
+2. **NÃO hardcodar project IDs ou nomes de tabelas em arquivos SQLX.** Usar `${ref()}`, `${self()}` e `constants.js`.
+3. **NÃO usar `WRITE_TRUNCATE` em tabelas bronze.** Bronze é somente append (`WRITE_APPEND`) — nunca sobrescrever dados brutos.
+4. **NÃO criar DAGs do Airflow que escrevam diretamente no BigQuery** (exceto load jobs para bronze). Transformações pertencem ao Dataform.
+5. **NÃO omitir descrições de colunas em tabelas silver e gold.** Usar o bloco `columns` no config do Dataform, sempre em português.
+6. **NÃO omitir assertions (`uniqueKey`, `nonNull`) em tabelas silver e gold.** Toda tabela transformada deve ter validação.
+7. **NÃO criar tabelas de staging como `type: "table"` ou `type: "incremental"`.** Staging deve ser `type: "view"`.
+8. **NÃO incorporar credenciais ou secrets em código.** Usar Secret Manager montado no Cloud Run e Airflow Connections.
+9. **NÃO consumir tabelas de staging fora de sua própria camada.** Staging é intermediário e interno.
+10. **NÃO misturar código entre as camadas do mono-repo.** Cada diretório (`ingestion/`, `transformation/`, `orchestration/`) é independente.
 
 ## Antes de Criar Novos Assets
 
 Sempre consultar os arquivos de documentação específicos em `guidelines/` para detalhamento:
 - `guidelines/lake-definition.md`: Para especificidades das camadas Medallion, convenções de nomenclatura, clustering, partitioning e colunas de metadados obrigatórias.
 - `guidelines/transformations.md`: Para especificidades do Dataform, padrões de materialização incremental, assertions, macros e estilo SQL.
-- `guidelines/orchestration.md`: Para regras de criação de DAGs do Composer/Airflow (se solicitado).
-- `guidelines/project-topology.md`: Para topologia GCP.
+- `guidelines/orchestration.md`: Para regras de criação de DAGs do Composer/Airflow.
+- `guidelines/api-ingestion.md`: Para padrões de ingestão de APIs externas via Cloud Run Jobs, containerização e integração com Composer.
+- `guidelines/project-topology.md`: Para topologia GCP, IAM e service accounts.
 - `guidelines/repo-structure.md`: Para caminhos de arquivo exatos e regras do mono-repo.

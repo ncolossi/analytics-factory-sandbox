@@ -2,7 +2,7 @@
 
 ## Visão Geral
 
-Este repositório é um **mono-repo** que centraliza todos os assets da plataforma de dados: transformações, orquestração, documentação e testes. A estrutura reflete a separação de responsabilidades descrita nos demais documentos de arquitetura.
+Este repositório é um **mono-repo** que centraliza todos os assets da plataforma de dados: ingestão, transformações, orquestração e documentação. A estrutura reflete a separação de responsabilidades descrita nos demais documentos de arquitetura.
 
 ---
 
@@ -16,12 +16,12 @@ agentic-data-development/
 │   ├── project-topology.md            #   Topologia do projeto GCP
 │   ├── transformations.md             #   Padrões de transformação Dataform
 │   ├── orchestration.md               #   Padrões de orquestração Composer/Airflow
+│   ├── api-ingestion.md               #   Padrões de ingestão de APIs via Cloud Run Jobs
 │   └── repo-structure.md              #   Este documento
 │
 ├── transformation/                    # Camada de transformação
 │   └── dataform/                      #   Projeto Dataform (ELT)
-│       ├── dataform.json              #     Configuração do projeto
-│       ├── workflow_settings.yaml     #     Configurações de workflow
+│       ├── workflow_settings.yaml     #     Configuração do projeto
 │       ├── definitions/               #     Definições de tabelas e transformações
 │       │   ├── bronze/                #       Declarações de fontes (raw)
 │       │   │   └── {domain}/         #         Ex.: erp/, crm/
@@ -38,6 +38,17 @@ agentic-data-development/
 │       └── includes/                  #     Funções e constantes reutilizáveis
 │           ├── constants.js           #       PROJECT_ID, LOCATION, etc.
 │           └── helpers.js             #       Funções de geração SQL
+│
+├── ingestion/                         # Camada de ingestão
+│   └── cloudrun/                      #   Cloud Run Jobs para APIs externas
+│       ├── {domain}/                  #     Jobs organizados por domínio
+│       │   └── {source}/              #       Um diretório por API/source
+│       │       ├── Dockerfile         #         Container do job
+│       │       ├── main.py            #         Lógica de extração
+│       │       └── requirements.txt   #         Dependências Python
+│       └── common/                    #     Utilitários compartilhados
+│           ├── base.py                #       Classe base para extração
+│           └── gcs_writer.py          #       Utilitário para escrita no GCS
 │
 ├── orchestration/                     # Camada de orquestração
 │   └── airflow/                       #   Cloud Composer (Airflow)
@@ -60,6 +71,7 @@ Use esta tabela para determinar onde criar cada tipo de asset:
 
 | Tipo de Asset | Diretório | Convenção de Nome | Referência |
 |---|---|---|---|
+| Job de ingestão de API | `ingestion/cloudrun/{domain}/{source}/` | `Dockerfile` + `main.py` | [Ingestão via APIs](api-ingestion.md) |
 | Declaração de fonte (bronze) | `transformation/dataform/definitions/bronze/{domain}/` | `{entity}.sqlx` | [Transformações](transformations.md) |
 | Transformação silver | `transformation/dataform/definitions/silver/{domain}/` | `{entity}.sqlx` | [Transformações](transformations.md) |
 | Modelo gold | `transformation/dataform/definitions/gold/{domain}/` | `{fact\|dim\|agg}_{entity}.sqlx` | [Transformações](transformations.md) |
@@ -76,9 +88,10 @@ Use esta tabela para determinar onde criar cada tipo de asset:
 
 ### 1. Espelhamento de Domínios
 
-Diretórios sob `transformation/dataform/definitions/` e `orchestration/airflow/dags/` devem espelhar os domínios de negócio do lake. Quando um novo domínio é adicionado, ele deve aparecer em ambos:
+Diretórios sob `ingestion/cloudrun/`, `transformation/dataform/definitions/` e `orchestration/airflow/dags/` devem espelhar os domínios de negócio do lake. Quando um novo domínio é adicionado, ele deve aparecer nas camadas aplicáveis:
 
 ```
+ingestion/cloudrun/sales/                            →  (se houver APIs como fonte)
 transformation/dataform/definitions/silver/sales/    →  orchestration/airflow/dags/sales/
 transformation/dataform/definitions/silver/finance/  →  orchestration/airflow/dags/finance/
 ```
@@ -91,8 +104,9 @@ Cada tabela de saída no Dataform corresponde a exatamente um arquivo `.sqlx`. O
 
 Cada arquivo Python em `orchestration/airflow/dags/` define exatamente uma DAG. O `dag_id` deve corresponder ao padrão `{domain}__{pipeline}`.
 
-### 4. Infraestrutura Separada de Lógica
+### 4. Separação de Responsabilidades
 
+- `ingestion/` contém apenas lógica de extração de dados (`cloudrun/` para Cloud Run Jobs).
 - `transformation/` contém apenas lógica de transformação.
 - `orchestration/` contém apenas lógica de orquestração.
 - Nenhum desses diretórios deve importar código dos outros.
@@ -107,17 +121,40 @@ Scripts de deploy, seed de dados, ou operações manuais ficam em `orchestration
 
 Ao adicionar um novo domínio (ex.: `marketing`), os seguintes arquivos devem ser criados:
 
-1. **Dataform** - declarações bronze e transformações:
+1. **Ingestão** (se houver APIs como fonte) - Cloud Run Jobs:
+   ```
+   ingestion/cloudrun/marketing/{source}/Dockerfile
+   ingestion/cloudrun/marketing/{source}/main.py
+   ingestion/cloudrun/marketing/{source}/requirements.txt
+   ```
+
+2. **Dataform** - declarações bronze e transformações:
    ```
    transformation/dataform/definitions/bronze/marketing/{entity}.sqlx
    transformation/dataform/definitions/silver/marketing/{entity}.sqlx
    transformation/dataform/definitions/gold/marketing/{fact|dim}_{entity}.sqlx
    ```
 
-2. **DAG** - pipeline de orquestração:
+3. **DAG** - pipeline de orquestração:
    ```
    orchestration/airflow/dags/marketing/daily_refresh.py
    ```
+
+---
+
+## Ambientes Virtuais Python
+
+Ao desenvolver localmente (ex.: jobs de ingestão em `ingestion/cloudrun/`), usar `.venv/` como nome do diretório do ambiente virtual:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+```
+
+**Regras**:
+- Sempre usar `.venv/` — nunca `venv/`, `env/`, `.env/` ou nomes personalizados.
+- O diretório `.venv/` já está incluído no `.gitignore` do repositório.
+- Cada job de ingestão pode ter seu próprio `.venv/` local para isolamento de dependências durante o desenvolvimento.
 
 ---
 

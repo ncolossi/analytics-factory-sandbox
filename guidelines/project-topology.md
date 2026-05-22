@@ -13,13 +13,26 @@ Todos os serviços rodam dentro de um **único projeto GCP**. Isso simplifica IA
 │  ┌─────────────────┐                                  │
 │  │  Cloud Composer  │──────────────────┐              │
 │  │  (Orchestration) │                  │              │
-│  └────────┬────────┘                  │              │
-│           │ triggers                  │ triggers     │
-│           ▼                           ▼              │
-│  ┌──────────────┐            ┌────────────┐          │
-│  │   BigQuery    │◀───────────│  Dataform  │          │
-│  │  (All Layers) │            │  (ELT)     │          │
-│  └──────────────┘            └────────────┘          │
+│  └──┬──────────┬───┘                  │              │
+│     │ triggers │ triggers             │ triggers     │
+│     ▼          │                      ▼              │
+│  ┌────────────┐│             ┌────────────┐          │
+│  │ Cloud Run  ││             │  Dataform  │          │
+│  │ Jobs (API  ││             │  (ELT)     │          │
+│  │ Ingestion) ││             └─────┬──────┘          │
+│  └─────┬──────┘│                   │                 │
+│        │       │                   │                 │
+│        ▼       │                   │                 │
+│  ┌─────────┐   │                   │                 │
+│  │   GCS   │   │                   │                 │
+│  │(Landing)│   │                   │                 │
+│  └────┬────┘   │                   │                 │
+│       │ load   │ load              │ transforms     │
+│       ▼        ▼                   ▼                 │
+│  ┌──────────────────────────────────────┐            │
+│  │            BigQuery                   │            │
+│  │          (All Layers)                 │            │
+│  └──────────────────────────────────────┘            │
 │         │                                            │
 │  ┌──────┴──────┐                                     │
 │  │             │                                     │
@@ -100,6 +113,27 @@ defaultAssertionDataset: dataform_assertions
 
 **Detalhes**: Veja [Orquestração](orchestration.md) para padrões de DAGs, convenções de nomenclatura e padrões de pipeline.
 
+### Cloud Run Jobs
+
+**Papel**: Motor de execução para ingestão de dados de APIs externas. Cada job encapsula a lógica de extração de uma API, empacotada como container Docker, e é acionado pelo Cloud Composer.
+
+**Configuração**:
+- **Localização**: `southamerica-east1` — mesma região dos demais serviços.
+- **Imagens**: Armazenadas no Artifact Registry (`{region}-docker.pkg.dev/{project_id}/ingestion/`).
+- **Service account**: `ingestion-sa` com acesso ao bucket de landing e Secret Manager.
+- **Secrets**: Montados via Secret Manager — nunca em variáveis de ambiente estáticas.
+
+**Detalhes**: Veja [Ingestão via APIs](api-ingestion.md) para padrões de código, containerização e integração com Composer.
+
+### Artifact Registry
+
+**Papel**: Registro de imagens Docker para os Cloud Run Jobs de ingestão.
+
+**Configuração**:
+- **Repositório**: `ingestion` (formato Docker).
+- **Localização**: `southamerica-east1`.
+- **Nomenclatura de imagens**: `{region}-docker.pkg.dev/{project_id}/ingestion/ingest-{domain}-{source}:latest`.
+
 ### Cloud Storage (GCS) — Papel de Suporte
 
 **Papel**: Área de staging para ingestão baseada em arquivos. Não é uma camada principal do lake.
@@ -120,7 +154,8 @@ defaultAssertionDataset: dataform_assertions
 | Service Account | Propósito | Roles Principais |
 |----------------|---------|-----------|
 | `dataform-sa` | Execução de pipelines do Dataform | `roles/bigquery.dataEditor`, `roles/bigquery.jobUser` |
-| `composer-sa` | Orquestração do Cloud Composer | `roles/composer.worker`, `roles/dataform.editor`, `roles/bigquery.jobUser` |
+| `composer-sa` | Orquestração do Cloud Composer | `roles/composer.worker`, `roles/dataform.editor`, `roles/bigquery.jobUser`, `roles/run.invoker` |
+| `ingestion-sa` | Execução de Cloud Run Jobs de ingestão de APIs | `roles/storage.objectCreator` (bucket landing), `roles/secretmanager.secretAccessor` |
 
 ### Acesso em Nível de Dataset
 

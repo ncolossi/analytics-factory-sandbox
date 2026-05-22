@@ -244,6 +244,7 @@ with DAG(
 | Padrão | Quando Usar |
 |---------|-------------|
 | Full domain refresh | Atualização diária/horária de um domínio inteiro (bronze → silver → gold) |
+| Full domain refresh com API | Mesmo que acima, mas com etapa de extração via Cloud Run Job antes da carga bronze (veja [Ingestão via APIs](api-ingestion.md)) |
 | Somente ingestão | Carregar dados no bronze sem acionar transformações downstream |
 | Somente transformação | Re-executar Dataform para silver/gold sem re-ingerir |
 | Cross-domain | Tabelas gold que fazem join de dados de múltiplos domínios — dependem de múltiplas DAGs de domínio via sensors |
@@ -284,6 +285,39 @@ Invocações do Dataform são filtradas por **tags** para executar apenas o subc
 ---
 
 ## Tarefas de Ingestão
+
+### APIs Externas via Cloud Run Jobs
+
+Para ingestão de APIs externas, usar `CloudRunExecuteJobOperator` para acionar Cloud Run Jobs que extraem dados e gravam no GCS. A carga no BigQuery bronze segue o padrão de GCS para BigQuery abaixo.
+
+```python
+from airflow.providers.google.cloud.operators.cloud_run import (
+    CloudRunExecuteJobOperator,
+)
+
+extract_orders = CloudRunExecuteJobOperator(
+    task_id="extract_orders",
+    project_id=PROJECT_ID,
+    region=REGION,
+    job_name="ingest-sales-api-orders",
+    overrides={
+        "container_overrides": [
+            {
+                "env": [
+                    {"name": "EXECUTION_DATE", "value": "{{ ds }}"},
+                    {"name": "PROJECT_ID", "value": PROJECT_ID},
+                ],
+            }
+        ],
+    },
+    deferrable=True,
+)
+```
+
+**Regras**:
+- Usar `deferrable=True` para não bloquear workers do Airflow.
+- Passar parâmetros dinâmicos via `overrides` — secrets são configurados no Cloud Run Job.
+- Veja [Ingestão via APIs](api-ingestion.md) para padrões completos de implementação dos jobs.
 
 ### GCS para BigQuery
 

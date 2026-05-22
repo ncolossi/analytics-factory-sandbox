@@ -59,8 +59,7 @@ dataform/
 ├── includes/                # Funções SQL e macros reutilizáveis
 │   ├── constants.js
 │   └── helpers.js
-├── dataform.json            # Configuração do projeto
-└── workflow_settings.yaml   # Configurações de workflow do Dataform
+└── workflow_settings.yaml   # Configuração do projeto Dataform
 ```
 
 **Regras**:
@@ -95,7 +94,17 @@ config {
   type: "table",
   schema: "silver_sales",
   name: "orders",
-  description: "Cleaned and deduplicated sales orders.",
+  description: "Pedidos de venda limpos e deduplicados, originados do sistema ERP. Inclui type casting, remoção de duplicatas por order_id (mantém o registro mais recente) e padronização de nomes de colunas.",
+  columns: {
+    order_id: "Identificador único do pedido de venda, originado do sistema ERP.",
+    customer_id: "Identificador único do cliente que realizou o pedido.",
+    order_date: "Data em que o pedido foi realizado pelo cliente.",
+    status: "Status atual do pedido no sistema ERP (ex.: pendente, aprovado, cancelado, entregue).",
+    order_total_amount: "Valor total do pedido em reais (BRL), incluindo todos os itens.",
+    line_item_count: "Quantidade de itens distintos incluídos no pedido.",
+    _loaded_at: "Timestamp UTC de quando o registro foi carregado ou atualizado pela última vez na camada silver.",
+    _source_table: "Nome completo da tabela bronze de origem deste registro."
+  },
   bigquery: {
     partitionBy: "DATE(order_date)",
     clusterBy: ["customer_id", "order_date"]
@@ -134,7 +143,7 @@ config {
   type: "table",
   schema: "gold_sales",
   name: "fact_orders",
-  description: "Order fact table with enriched customer and product dimensions.",
+  description: "Tabela fato de pedidos de venda enriquecida com dimensões de cliente e produto. Contém métricas de valor total e contagem de itens por pedido.",
   bigquery: {
     partitionBy: "DATE(order_date)",
     clusterBy: ["customer_id"]
@@ -171,7 +180,7 @@ config {
   type: "view",
   schema: "silver_sales",
   name: "stg_orders_deduped",
-  description: "Intermediate: deduplicated orders before final silver load.",
+  description: "Etapa intermediária: pedidos deduplicados antes da carga final na camada silver.",
   tags: ["staging", "sales"]
 }
 ```
@@ -219,9 +228,82 @@ Aplicar tags de forma consistente para gerenciamento de pipelines:
 
 ### Documentação
 
-Todo arquivo `.sqlx` deve incluir:
-- `description` no bloco config: um resumo em uma linha do que a tabela representa.
-- Descrições de colunas para tabelas da camada gold via config `columns` do Dataform ou um bloco de documentação separado.
+**Regra fundamental: todas as descrições de datasets, tabelas e colunas no BigQuery devem ser escritas em português.**
+
+Descrições são obrigatórias e servem como documentação viva do lake — são exibidas no console do BigQuery, catálogos de dados e ferramentas de governança. Descrições claras e detalhadas em português garantem que qualquer pessoa da organização consiga entender o propósito e o conteúdo dos dados sem precisar consultar documentação externa.
+
+#### Descrições de Datasets
+
+Todo dataset criado no BigQuery deve ter uma descrição que explique:
+- O domínio de dados que o dataset contém.
+- A camada do lake a que pertence e o nível de qualidade dos dados.
+- O sistema ou área de origem dos dados (para bronze e silver).
+
+**Exemplos**:
+- `bronze_erp`: *"Dados brutos ingeridos do sistema ERP sem nenhuma transformação aplicada. Contém o histórico completo de ingestão com possíveis duplicatas e inconsistências."*
+- `silver_sales`: *"Dados de vendas limpos, deduplicados e tipados. Fonte única de verdade para entidades do domínio de vendas."*
+- `gold_sales`: *"Modelos analíticos de vendas prontos para consumo por dashboards, relatórios e APIs. Contém tabelas fato, dimensão e agregações com regras de negócio aplicadas."*
+
+#### Descrições de Tabelas
+
+Todo arquivo `.sqlx` deve incluir `description` no bloco config com uma descrição detalhada que explique:
+- O que a tabela representa em termos de negócio.
+- A origem dos dados (de qual tabela/sistema vem).
+- Transformações ou regras de negócio relevantes aplicadas.
+- Para tabelas incrementais, a estratégia de atualização.
+
+**Exemplos**:
+```sqlx
+config {
+  type: "table",
+  schema: "silver_sales",
+  name: "orders",
+  description: "Pedidos de venda limpos e deduplicados, originados do sistema ERP. Inclui type casting, remoção de duplicatas por order_id (mantém o registro mais recente) e padronização de nomes de colunas.",
+  ...
+}
+```
+
+```sqlx
+config {
+  type: "table",
+  schema: "gold_sales",
+  name: "fact_orders",
+  description: "Tabela fato de pedidos de venda enriquecida com dimensões de cliente e produto. Contém métricas de valor total e contagem de itens por pedido, pronta para análises de receita e comportamento de compra.",
+  ...
+}
+```
+
+#### Descrições de Colunas
+
+Descrições de colunas são obrigatórias para tabelas das camadas **silver** e **gold**. Utilizar o bloco `columns` no config do Dataform:
+
+```sqlx
+config {
+  type: "table",
+  schema: "gold_sales",
+  name: "fact_orders",
+  description: "Tabela fato de pedidos de venda enriquecida com dimensões de cliente e produto.",
+  columns: {
+    order_id: "Identificador único do pedido de venda, originado do sistema ERP.",
+    customer_id: "Identificador único do cliente que realizou o pedido.",
+    order_date: "Data em que o pedido foi realizado pelo cliente.",
+    order_status: "Status atual do pedido (ex.: pendente, aprovado, cancelado, entregue).",
+    order_total_amount: "Valor total do pedido em reais (BRL), incluindo todos os itens.",
+    line_item_count: "Quantidade de itens distintos incluídos no pedido.",
+    customer_name: "Nome completo do cliente, proveniente da dimensão de clientes.",
+    customer_segment: "Segmento de classificação do cliente (ex.: varejo, atacado, premium).",
+    _last_updated_at: "Timestamp UTC da última execução do pipeline que atualizou este registro."
+  },
+  ...
+}
+```
+
+**Regras para descrições de colunas**:
+- Explicar o significado de negócio da coluna, não apenas o tipo de dado.
+- Para colunas com valores categóricos, listar os valores possíveis entre parênteses.
+- Para colunas de valor monetário, indicar a moeda.
+- Para colunas originadas de outros sistemas, indicar a origem.
+- Colunas de metadados (`_loaded_at`, `_source_table`, `_last_updated_at`) também devem ter descrição.
 
 ---
 
@@ -238,7 +320,7 @@ config {
   type: "table",
   schema: "silver_finance",
   name: "shared_customers",
-  description: "Customer data replicated from sales domain for finance use.",
+  description: "Dados de clientes replicados do domínio de vendas para uso do domínio financeiro.",
   bigquery: {
     partitionBy: "DATE(created_date)",
     clusterBy: ["customer_id"]
@@ -259,7 +341,7 @@ config {
   type: "incremental",
   schema: "silver_finance",
   name: "shared_orders",
-  description: "Orders replicated incrementally from sales domain.",
+  description: "Pedidos replicados incrementalmente do domínio de vendas para o domínio financeiro.",
   uniqueKey: ["order_id"],
   bigquery: {
     partitionBy: "DATE(order_date)"
