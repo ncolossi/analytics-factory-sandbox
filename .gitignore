@@ -4,6 +4,9 @@
 # local files
 *.local.*
 
+# agentic platforms
+.antigravitycli/
+
 # data agent kit
 .agents/
 
