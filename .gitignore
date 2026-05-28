@@ -4,6 +4,13 @@
 # local files
 *.local.*
 
+# data agent kit
+.agents/
+
+# python
+.venv/
+*.pyc
+
 # terraform
 **/.terraform/
 *.tfstate
@@ -23,3 +30,4 @@ tfplan
 node_modules/
 .df-credentials.json
 .dataform/
+
