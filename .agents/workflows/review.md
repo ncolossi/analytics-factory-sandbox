@@ -19,7 +19,7 @@ let me decide.
    - **Naming & placement:** `{layer}_{domain}` datasets, `{domain}__{pipeline}`
      DAGs, `ingest-{domain}-{source}` jobs, correct mono-repo paths.
    - **Layering:** no cross-layer imports; staging consumed only within its layer.
-   - **Dev/prod:** work targets `_dev`; no manual writes to production.
+   - **Dev/prod:** work targets the **dev project**; no manual writes to production.
 
 3. Report a concise list: file → issue → suggested fix → severity. Recommend, but
    leave the call to me.

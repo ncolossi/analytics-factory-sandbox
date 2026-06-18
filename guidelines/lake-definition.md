@@ -7,13 +7,19 @@
 
 | Layer | Purpose | Quality | Write mode |
 |-------|---------|---------|-----------|
-| **Bronze** | Raw data exactly as received | None (schema-on-read; may contain dupes/nulls) | Append-only — never update/delete |
+| **Bronze** | Raw data exactly as received, **materialized** into the lake | None (schema-on-read; may contain dupes/nulls) | Materialized + append-only — never update/delete/overwrite |
 | **Silver** | Deduplicated, typed, conformed; single source of truth per entity | Schema enforced, dupes removed, nulls handled | Full refresh or upsert (latest state) |
 | **Gold** | Aggregated, modeled, business-ready | Business rules applied, fully documented | Depends on use case |
 
 Every cross-layer move, cross-dataset copy, and in-BigQuery transform runs
 **exclusively via Dataform**, incremental preferred (see
 [transformations.md](transformations.md)).
+
+**Bronze always materializes.** Even when the raw source already lives in
+BigQuery (another dataset/project, a data share, an external table), bronze is a
+**materialized** Dataform table that copies the data into `bronze_{domain}` —
+never a `declaration`/pointer. Declare the upstream raw input as a **source**
+(`definitions/sources/`, see [transformations.md](transformations.md)).
 
 ## Naming (mandatory)
 

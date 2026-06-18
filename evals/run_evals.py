@@ -27,7 +27,8 @@ BAD_DIR = os.path.join(REPO_ROOT, "evals", "cases", "bad")
 # fixture (relative to evals/cases/bad) -> rule that MUST fire for it.
 NEGATIVE_CASES = {
     "definitions/silver/sales/hardcoded_ref.sqlx": "no-hardcoded-ref",
-    "definitions/bronze/erp/not_declaration.sqlx": "bronze-declaration-only",
+    "definitions/bronze/erp/declared.sqlx": "bronze-must-materialize",
+    "definitions/sources/erp/materialized.sqlx": "sources-declaration-only",
     "definitions/silver/sales/missing_assertions.sqlx": "assertions-required",
     "definitions/staging/sales/stg_table.sqlx": "staging-view-only",
     "scripts/copy.sh": "no-bq-cp",

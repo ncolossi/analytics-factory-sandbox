@@ -7,7 +7,8 @@ gate the rules below. Language of descriptions (Portuguese) is NOT machine-check
 here; that is a reviewer concern (the /review workflow flags it).
 
   - Rule 2: no hardcoded project.dataset.table references (use ${ref()}/${self()}).
-  - Rule 3: bronze is declaration-only (never transformed/truncated).
+  - Rule 3: bronze must materialize (table/incremental, append-only); sources are
+    declaration-only.
   - Rule 4: silver & gold declare assertions with a uniqueKey.
   - Rule 5: staging is type "view".
   - Rule 6: silver & gold tables have a description and a columns{} block.
@@ -102,13 +103,17 @@ def find_findings(paths=None):
                 add("error", "no-hardcoded-ref",
                     "Hardcoded table reference; use ${ref()} / ${self()} (rule 2).")
 
-        # Rule 3 — bronze is declaration-only.
-        if layer == "bronze" and typ and typ != "declaration":
-            add("error", "bronze-declaration-only",
-                f"Bronze must be type 'declaration', found '{typ}' (rule 3).")
+        # Rule 3 — bronze must MATERIALIZE (not a declaration/pointer or a view).
+        if layer == "bronze" and typ in ("declaration", "view"):
+            add("error", "bronze-must-materialize",
+                f"Bronze must materialize data (type table/incremental), found '{typ}' (rule 3).")
         if layer == "bronze" and "WRITE_TRUNCATE" in text:
             add("error", "bronze-append-only",
                 "WRITE_TRUNCATE on bronze; bronze is append-only (rule 3).")
+        # Rule 3 — sources are declaration-only.
+        if layer == "sources" and typ and typ != "declaration":
+            add("error", "sources-declaration-only",
+                f"Sources must be type 'declaration', found '{typ}' (rule 3).")
 
         # Rule 5 — staging is a view.
         if layer == "staging" and typ and typ != "view":

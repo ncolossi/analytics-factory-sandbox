@@ -7,9 +7,9 @@
 
 ## Hard rules
 
-1. **DAGs do not write to BigQuery** except the bronze load job
-   (`BigQueryInsertJobOperator`, `WRITE_APPEND`). All transforms are Dataform
-   invocations.
+1. **DAGs do not write to BigQuery** except the **raw load** into a landing/source
+   table (`BigQueryInsertJobOperator`, `WRITE_APPEND`). Bronze and all transforms
+   are Dataform invocations.
 2. **One DAG per file**; `dag_id` == filename; pattern `{domain}__{pipeline}`
    (e.g. `sales__daily_refresh`).
 3. **No secrets in DAGs.** Use Airflow Connections / Variables.
@@ -39,7 +39,8 @@ default_args = {
 
 ## Pipeline shape
 
-Task groups per layer: **(extraction →) bronze → silver → gold**. Pattern:
+Task groups: **(extraction →) raw load (GCS→landing/source) → Dataform
+(bronze → silver → gold)**. Pattern:
 `compile_{layer}` (`DataformCreateCompilationResultOperator`, `git_commitish:
 main` for prod) `>> run_{layer}` (`DataformCreateWorkflowInvocationOperator`).
 
@@ -58,8 +59,8 @@ Tags must match the Dataform SQLX tags in [transformations.md](transformations.m
 
 Trigger Cloud Run jobs with `CloudRunExecuteJobOperator(deferrable=True)`, pass
 dynamic params via `overrides` (e.g. `EXECUTION_DATE="{{ ds }}"`); secrets stay
-on the job, not the DAG. Then load GCS→bronze with `WRITE_APPEND`. Details in
-[api-ingestion.md](api-ingestion.md).
+on the job, not the DAG. Then load GCS→landing/source table with `WRITE_APPEND`,
+and let Dataform materialize bronze. Details in [api-ingestion.md](api-ingestion.md).
 
 ## Style
 

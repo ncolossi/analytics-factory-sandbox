@@ -11,8 +11,10 @@
    Dataform actions too (tag them `data-copy`).
 2. **No hardcoded** project IDs or table names — `${ref()}`, `${self()}`,
    `includes/constants.js` only.
-3. **Bronze** sources are `type: "declaration"`. Never transform or truncate
-   bronze.
+3. **Bronze always materializes** (`type: "incremental"` append, or `"table"`) —
+   even when the source is already in BigQuery. Declare the raw input as a
+   `type: "declaration"` **source** under `definitions/sources/`. Never dedup,
+   transform, or truncate bronze.
 4. **Silver & Gold** must declare `assertions` (`uniqueKey`, always; `nonNull`
    on required columns; `rowConditions` for business rules).
 5. **Staging** is always `type: "view"` and never consumed outside its layer.
@@ -23,7 +25,8 @@
 ## Layout (mono-repo)
 
 ```
-transformation/dataform/definitions/{layer}/{domain}/{entity}.sqlx
+transformation/dataform/definitions/sources/{domain}/{entity}.sqlx   # type: declaration
+transformation/dataform/definitions/{bronze,silver,gold,staging}/{domain}/{entity}.sqlx
 transformation/dataform/includes/{constants,helpers}.js
 ```
 
@@ -36,6 +39,8 @@ One `.sqlx` per output table; filename == table name. Mirror lake domains.
   the incremental filter partition-compatible.
 - **Full refresh** only for small dimensions, sources lacking a change column,
   or initial bootstrap.
+- **Bronze**: incremental **append** (no `uniqueKey` → preserve full raw
+  history); materialize from a source declaration; never dedup or truncate.
 
 ## SQL style
 
@@ -49,6 +54,33 @@ Layer (`bronze`/`silver`/`gold`) + domain + type (`fact`/`dim`/`agg`) +
 `staging` + cadence (`daily`/`hourly`) + `incremental` where applicable. Composer
 invokes Dataform filtered by these tags — keep them consistent with
 [orchestration.md](orchestration.md).
+
+## Sources & bronze example
+
+```sqlx
+-- definitions/sources/erp/orders.sqlx  (raw input, may already be in BigQuery)
+config {
+  type: "declaration",
+  database: "${constants.PROJECT_ID}",
+  schema: "landing_erp",
+  name: "orders_raw"
+}
+```
+
+```sqlx
+-- definitions/bronze/erp/orders.sqlx  (materialized, append-only)
+config {
+  type: "incremental",
+  schema: "bronze_erp",
+  name: "orders",
+  description: "Cópia bruta e materializada dos pedidos do ERP, preservada sem transformação (append-only).",
+  bigquery: { partitionBy: "DATE(_ingestion_timestamp)" },
+  tags: ["bronze", "erp", "incremental"]
+}
+
+SELECT CURRENT_TIMESTAMP() AS _ingestion_timestamp, *
+FROM ${ref("orders_raw")}
+```
 
 ## Minimal silver example (note Portuguese descriptions)
 

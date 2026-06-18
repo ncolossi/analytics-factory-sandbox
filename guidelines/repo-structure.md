@@ -28,7 +28,7 @@ analytics-factory-sandbox/
 ├── ingestion/cloudrun/{domain}/{source}/   # Dockerfile, main.py, requirements.txt
 ├── transformation/dataform/
 │   ├── workflow_settings.yaml
-│   ├── definitions/{bronze,silver,gold,staging}/{domain}/{entity}.sqlx
+│   ├── definitions/{sources,bronze,silver,gold,staging}/{domain}/{entity}.sqlx
 │   └── includes/{constants,helpers}.js
 └── orchestration/airflow/
     ├── dags/{domain}/{pipeline}.py   dags/common/utils.py
@@ -43,7 +43,8 @@ analytics-factory-sandbox/
 | Asset | Path | Name |
 |-------|------|------|
 | API ingestion job | `ingestion/cloudrun/{domain}/{source}/` | `Dockerfile` + `main.py` |
-| Bronze declaration | `transformation/dataform/definitions/bronze/{domain}/` | `{entity}.sqlx` |
+| Source declaration | `transformation/dataform/definitions/sources/{domain}/` | `{entity}.sqlx` (type `declaration`) |
+| Bronze (materialized) | `transformation/dataform/definitions/bronze/{domain}/` | `{entity}.sqlx` (table/incremental) |
 | Silver model | `…/definitions/silver/{domain}/` | `{entity}.sqlx` |
 | Gold model | `…/definitions/gold/{domain}/` | `{fact\|dim\|agg}_{entity}.sqlx` |
 | Staging (view) | `…/definitions/staging/{domain}/` | `stg_{entity}.sqlx` |
@@ -63,7 +64,7 @@ analytics-factory-sandbox/
 ## New domain checklist
 
 `ingestion/cloudrun/{domain}/{source}/` (if API) →
-`transformation/dataform/definitions/{bronze,silver,gold}/{domain}/` →
+`transformation/dataform/definitions/{sources,bronze,silver,gold}/{domain}/` →
 `orchestration/airflow/dags/{domain}/daily_refresh.py`. The `/scaffold-domain`
 workflow automates this.
 

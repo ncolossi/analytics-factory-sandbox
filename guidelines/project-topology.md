@@ -1,16 +1,17 @@
 # Project Topology — org overrides
 
-> Single GCP project, region `southamerica-east1` for **every** resource
-> (BigQuery datasets, Dataform repo, Composer env, GCS buckets). Provisioning
-> how-to: `gcp-pipeline-resource-provisioning` skill.
+> **Separate dev and prod GCP projects** (identical architecture in each),
+> region `southamerica-east1` for **every** resource (BigQuery datasets, Dataform
+> repo, Composer env, GCS buckets). Provisioning how-to:
+> `gcp-pipeline-resource-provisioning` skill.
 
 ## Services
 
 | Service | Role | Notes |
 |---------|------|-------|
 | **BigQuery** | Warehouse for all layers | Datasets `{layer}_{domain}`, same location; descriptions in Portuguese |
-| **Dataform** | Only writer to BigQuery (except bronze load) | One repo; workspace per dev/branch; default location matches BigQuery |
-| **Cloud Composer 2** | Orchestration | Autoscaling defaults; same region |
+| **Dataform** | Only writer to BigQuery (except the raw landing/source load) | One repo; `defaultProject` selects the env; default location matches BigQuery |
+| **Cloud Composer 3** | Orchestration | Autoscaling defaults; same region |
 | **Cloud Run Jobs** | API ingestion | Images in Artifact Registry `ingestion/`; secrets via Secret Manager |
 | **Artifact Registry** | Docker images | Repo `ingestion` (Docker), same region |
 | **Cloud Storage** | Landing / export staging (support role, not a lake layer) | `{project}-data-{purpose}` |
@@ -28,15 +29,18 @@
 - Bronze: write = ingestion SAs; read = Dataform SA. Silver: write = Dataform SA.
   Gold: write = Dataform SA; read = consumers (BI/analysts/ML) via `dataViewer`.
 
-## Environments (one project, dataset suffixes)
+## Environments (separate projects)
 
-| Env | Dataset pattern | Rules |
-|-----|-----------------|-------|
-| Production | `{layer}_{domain}` | Modified only through Dataform release configs |
-| Development | `{layer}_{domain}_dev` | Ephemeral; default compile/run target |
+| Env | GCP project | Rules |
+|-----|-------------|-------|
+| Development | dev project (e.g. `…-dev`) | Default target for all agent work; safe to recreate |
+| Production | prod project (e.g. `…-prod`) | Deployed only through Dataform/Composer release configs |
 
-**Agents compile and run against `_dev` by default.** Production is never touched
-manually.
+Dataset names are **identical across projects** (`{layer}_{domain}`, **no `_dev`
+suffix**) — environments are separated by **project**, not by dataset name. The
+`defaultProject` in Dataform `workflow_settings.yaml` selects the environment.
+
+**Agents operate only in the dev project.** Production is never touched manually.
 
 ## Observability (data/pipeline runtime)
 

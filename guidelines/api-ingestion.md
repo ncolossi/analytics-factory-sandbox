@@ -2,7 +2,8 @@
 
 > **How-to:** use the `cloud-run-basics` skill for Cloud Run jobs, builds, and
 > deploys. This file is only our deltas. Flow:
-> `API → Cloud Run Job → GCS landing → BigQuery bronze load (Composer)`.
+> `API → Cloud Run Job → GCS landing → BQ landing/source load (Composer) →
+> Dataform materializes bronze`.
 
 ## Hard rules
 
@@ -44,5 +45,6 @@ job's service account / Workload Identity). Images go to Artifact Registry:
 ## Composer integration
 
 `CloudRunExecuteJobOperator(deferrable=True)`; pass `EXECUTION_DATE="{{ ds }}"`
-for idempotency; do not duplicate the job's secrets in Composer. The bronze load
-step that follows uses `WRITE_APPEND`. See [orchestration.md](orchestration.md).
+for idempotency; do not duplicate the job's secrets in Composer. The load step
+that follows lands raw data into a landing/source table (`WRITE_APPEND`), which
+Dataform then materializes into bronze. See [orchestration.md](orchestration.md).

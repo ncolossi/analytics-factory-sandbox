@@ -1,7 +1,0 @@
-config {
-  type: "table",
-  schema: "bronze_erp",
-  name: "orders_bad"
-}
-
-SELECT * FROM ${ref("bronze_erp", "orders")}
