@@ -1,0 +1,8 @@
+config {
+  type: "table",
+  schema: "silver_sales",
+  name: "stg_orders_bad",
+  description: "Caso ruim: staging materializado como table em vez de view."
+}
+
+SELECT * FROM ${ref("bronze_erp", "orders")}

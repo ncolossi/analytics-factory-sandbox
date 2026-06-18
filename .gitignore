@@ -23,3 +23,11 @@ tfplan
 node_modules/
 .df-credentials.json
 .dataform/
+
+# python
+__pycache__/
+*.pyc
+.venv/
+
+# scratch / large reference docs (kept locally, not committed)
+tmp/

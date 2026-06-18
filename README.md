@@ -1,124 +1,96 @@
 # Analytics Factory Sandbox
 
-Setup básico para desenvolvimento agêntico de Data & Analytics em Google Cloud, apoiado por ferramentas como o **Gemini CLI** e extensões de IDE que aceleram a criação e manutenção de pipelines de dados com assistência de IA.
+Um **harness** para desenvolvimento agêntico de Data & Analytics no Google Cloud:
+o conjunto de instruções, skills, guardrails e avaliações que cercam o modelo de
+IA e o mantêm focado, seguro e produtivo ao construir data pipelines (Medallion
+Bronze → Silver → Gold com Dataform, Cloud Composer e Cloud Run).
 
-> **Nota:** Este repositório está em desenvolvimento ativo.
+> **Nota:** repositório em desenvolvimento ativo.
 
-## Guidelines
+> Conceito de harness baseado em *Harness Engineering* (`Agent = Model + Harness`):
+> o modelo é só um dos insumos; o que determina o comportamento do agente é o que
+> o cerca — instruções, ferramentas, sandbox, orquestração, guardrails e
+> observabilidade.
 
-O diretório `guidelines/` contém documentação de referência sobre arquitetura, nomenclaturas, padrões de transformação e orquestração. Esses guidelines servem como contexto para os agentes de IA e podem — e devem — ser ajustados para refletir as regras, ferramentas e convenções específicas de cada cenário ou organização.
+## Como o harness funciona
 
-Os arquivos de instrução para agentes (`GEMINI.md`, etc.) referenciam esses guidelines para garantir que o código gerado siga os padrões definidos.
+| Componente | Onde vive | Papel |
+|------------|-----------|-------|
+| **Constituição** | [AGENTS.md](AGENTS.md) | Instruções canônicas, neutras de ferramenta — arquivo único, lido diretamente pelo agente. |
+| **Overrides** | [guidelines/](guidelines/) | Regras específicas da organização **sobre** as skills (não duplicam o how-to). |
+| **Skills** | `.agents/skills/` | Data Agent Kit + Cloud Run — o how-to de Dataform, Composer, ingestão. |
+| **Guardrails** | [tools/checks/](tools/checks/) | Validadores que aplicam as regras inegociáveis via **pre-commit + CI**. |
+| **Evals** | [evals/](evals/) | Self-test determinístico (golden + casos negativos) + golden tasks de agente. |
+| **Workflows** | `.agents/workflows/` | Procedimentos slash do Antigravity (`/scaffold-domain`, `/review`, `/run-evals`). |
+
+**Idioma:** instruções e código em inglês; **descrições de dados no BigQuery
+(dataset/tabela/coluna) sempre em português** (regra 6 do AGENTS.md).
 
 ## Setup
 
-### Pré-requisito
+### Pré-requisitos
 
-Um **projeto GCP de desenvolvimento** onde você tenha permissões para habilitar APIs e criar recursos.
+Um **projeto GCP de desenvolvimento** com permissão para habilitar APIs e criar
+recursos, além do [Antigravity 2.0](https://antigravity.google/),
+[Git](https://git-scm.com/), [Node.js LTS](https://nodejs.org/) (npm),
+[Python 3.12+](https://www.python.org/) e o
+[Google Cloud SDK](https://cloud.google.com/sdk/docs/install).
 
-### 1. Configure o VSCode
-
-Instale o [Visual Studio Code](https://code.visualstudio.com/) e configure seu ambiente local (terminal integrado, extensões básicas, tema, etc.).
-
-### 2. Instale o Node.js e npm
-
-O **npm** é necessário para instalar o Dataform CLI e o Gemini CLI. Ele é distribuído junto com o [Node.js](https://nodejs.org/).
-
-Baixe e instale a versão **LTS** recomendada em: https://nodejs.org/en/download
-
-Verifique a instalação:
-
-```bash
-node --version
-npm --version
-```
-
-### 3. Configure o gcloud CLI
-
-Instale o [Google Cloud SDK](https://cloud.google.com/sdk/docs/install) e autentique com seu projeto de desenvolvimento:
+> **Git** é necessário localmente — os guardrails rodam via `pre-commit` e o gate
+> de CI é acionado por `git push`.
 
 ```bash
 gcloud auth login
 gcloud config set project SEU_PROJETO_ID
 gcloud auth application-default login
+npm install -g @dataform/cli      # Dataform CLI
 ```
 
-### 4. Configure o Dataform CLI
+### Configurando o Antigravity
 
-Instale o [Dataform CLI](https://cloud.google.com/dataform/docs/use-dataform-cli) globalmente:
+O [Antigravity 2.0](https://antigravity.google/) é a IDE agêntica usada neste
+repositório. Ao abrir o projeto, ele carrega automaticamente a constituição
+`AGENTS.md`, as regras em `.agents/rules/`, os procedimentos slash em
+`.agents/workflows/` e as skills em `.agents/skills/`.
+
+1. Abra este repositório no Antigravity.
+2. Faça **login com seu projeto do Google Cloud** de desenvolvimento
+   (autenticação via Google Cloud / Vertex AI), apontando o agente para o
+   projeto onde você tem permissão de criar recursos — em vez de uma conta
+   pessoal.
+3. Valide que as APIs básicas (BigQuery, Dataform, Composer) estão habilitadas
+   no projeto.
+4. Acione os procedimentos com `/` (ex.: `/scaffold-domain`, `/review`,
+   `/run-evals`).
+
+## Guardrails e Evals
+
+As regras inegociáveis do [AGENTS.md](AGENTS.md) são aplicadas por código
+determinístico — não por confiança — de forma **agnóstica à ferramenta** (vale
+para o agente e para commits humanos):
 
 ```bash
-npm install -g @dataform/cli
+python3 tools/checks/run_checks.py     # guardrails (padrões proibidos + Dataform)
+python3 evals/run_evals.py             # evals (golden + casos negativos)
 ```
 
-Verifique a instalação:
+Ative o bloqueio local e replique o gate no CI:
 
 ```bash
-dataform --version
+pip install pre-commit && pre-commit install   # .pre-commit-config.yaml
 ```
 
-### 5. Configure o Gemini CLI
-
-Instale o [Gemini CLI](https://github.com/google-gemini/gemini-cli) e autentique com seu projeto de desenvolvimento:
-
-```bash
-npm install -g @google/gemini-cli
-```
-
-Após a instalação, autentique:
-
-```bash
-gemini auth login
-```
-
-### 6. Extensões do VSCode
-
-Instale as seguintes extensões:
-
-- **Gemini CLI Companion** — integração do Gemini CLI com o VSCode.
-- **Google Cloud Data Agent Kit** — assistente agêntico para desenvolvimento de dados em GCP.
-
-Após instalar o **Data Agent Kit**:
-
-1. Vá em **Settings** da extensão.
-2. Aponte para seu **projeto GCP de desenvolvimento**.
-3. Valide que as **APIs básicas estão habilitadas** (BigQuery, Dataform, Composer, etc.).
-4. Instale a extensão do Data Agent Kit no Gemini CLI: vá em **Settings** → **Configure MCP Servers** → **Configure for CLI Agents**.
-
-## Conversando com o Agente
-
-1. Abra um **terminal integrado** no VSCode (`Ctrl+`` ` ou `Terminal > New Terminal`).
-
-2. Inicie o Gemini CLI:
-
-   ```bash
-   gemini
-   ```
-
-3. Configure a autenticação para Vertex AI:
-
-   ```
-   /auth vertex
-   ```
-
-4. Selecione o modelo desejado:
-
-   ```
-   /model gemini-3.1-pro-preview
-   ```
-
-5. Quando estiver confiante no funcionamento do agente e quiser aprovar ações automaticamente, ative o **yolo mode** com `Ctrl+Y`.
-
-   > No yolo mode o agente executa comandos sem pedir confirmação. Use com cuidado e apenas em ambientes de desenvolvimento.
+O CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) roda os mesmos checks
+em todo push/PR. **Antigravity não tem mecanismo de hooks**, por isso a aplicação
+determinística vive no git (pre-commit) + CI, e não na ferramenta.
 
 ## Custos de Nuvem
 
-O uso dos serviços Google Cloud envolvidos neste setup — como BigQuery, Dataform, Cloud Composer, Cloud Storage, entre outros — está sujeito a cobrança conforme os [preços do Google Cloud](https://cloud.google.com/pricing). Consulte a documentação de cada serviço para entender os modelos de precificação e os limites do free tier.
-
-Além disso, ao configurar o Gemini CLI para utilizar o **Vertex AI** (via `/auth vertex`), as chamadas ao modelo consomem tokens que são cobrados de acordo com os [preços da Gemini API no Vertex AI](https://cloud.google.com/vertex-ai/generative-ai/pricing). O consumo de tokens pode crescer rapidamente em sessões longas ou no yolo mode, onde o agente executa ações sem confirmação.
-
-> Monitore o consumo do seu projeto de desenvolvimento pelo [console de billing do GCP](https://console.cloud.google.com/billing) e configure alertas de orçamento para evitar custos inesperados.
+O uso de BigQuery, Dataform, Cloud Composer, Cloud Storage e dos modelos de IA
+(via Vertex AI) é cobrado conforme os [preços do Google Cloud](https://cloud.google.com/pricing).
+Configure [alertas de orçamento](https://console.cloud.google.com/billing) — o
+consumo de tokens cresce rápido em sessões longas e em modo autônomo.
 
 ## Licença
 
-Você é livre para copiar, modificar e distribuir este conteúdo sob os termos da licença Apache 2.0. Consulte o arquivo `LICENSE` para mais detalhes.
+Apache 2.0 — veja o arquivo [LICENSE](LICENSE).

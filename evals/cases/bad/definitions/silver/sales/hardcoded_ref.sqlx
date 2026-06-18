@@ -1,0 +1,11 @@
+config {
+  type: "table",
+  schema: "silver_sales",
+  name: "orders_hardcoded",
+  description: "Caso ruim: referência de tabela hardcoded em vez de ${ref()}.",
+  columns: { order_id: "Identificador do pedido." },
+  assertions: { uniqueKey: ["order_id"], nonNull: ["order_id"] }
+}
+
+SELECT order_id
+FROM `my-project.bronze_erp.orders`

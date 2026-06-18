@@ -1,0 +1,10 @@
+config {
+  type: "table",
+  schema: "silver_sales",
+  name: "orders_no_assertions",
+  description: "Caso ruim: tabela silver sem assertions.",
+  columns: { order_id: "Identificador do pedido." }
+}
+
+SELECT order_id
+FROM ${ref("bronze_erp", "orders")}

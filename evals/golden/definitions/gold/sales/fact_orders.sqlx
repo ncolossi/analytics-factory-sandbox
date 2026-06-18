@@ -1,0 +1,22 @@
+config {
+  type: "table",
+  schema: "gold_sales",
+  name: "fact_orders",
+  description: "Tabela fato de pedidos de venda enriquecida com dimensões de cliente.",
+  columns: {
+    order_id: "Identificador único do pedido de venda, originado do ERP.",
+    customer_id: "Identificador único do cliente que realizou o pedido.",
+    _last_updated_at: "Timestamp UTC da última execução do pipeline que atualizou este registro."
+  },
+  bigquery: { partitionBy: "DATE(order_date)", clusterBy: ["customer_id"] },
+  tags: ["gold", "sales", "fact"],
+  assertions: { uniqueKey: ["order_id"], nonNull: ["order_id", "customer_id"] }
+}
+
+SELECT
+  o.order_id,
+  o.customer_id,
+  CURRENT_TIMESTAMP() AS _last_updated_at
+FROM ${ref("silver_sales", "orders")} AS o
+LEFT JOIN ${ref("silver_sales", "customers")} AS c
+  ON o.customer_id = c.customer_id

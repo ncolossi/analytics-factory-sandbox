@@ -1,0 +1,43 @@
+name: harness-ci
+
+# Authoritative, tool-agnostic enforcement of the harness. Runs regardless of
+# which agent (Antigravity, Gemini CLI, Claude Code) or human produced the change.
+on:
+  push:
+    branches: [main, "feature/**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  guardrails:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Guardrails (forbidden patterns + Dataform rules)
+        run: python3 tools/checks/run_checks.py
+
+      - name: Evals (golden + negative self-test)
+        run: python3 evals/run_evals.py
+
+      - name: Ruff lint (Python)
+        run: pipx run ruff check . || pip install ruff && ruff check .
+
+      - name: Dataform compile (only if a Dataform project exists)
+        run: |
+          if [ -f transformation/dataform/workflow_settings.yaml ]; then
+            npm install -g @dataform/cli
+            (cd transformation/dataform && dataform compile)
+          else
+            echo "No Dataform project yet — skipping compile."
+          fi
