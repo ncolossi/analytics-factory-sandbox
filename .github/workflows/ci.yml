@@ -31,7 +31,9 @@ jobs:
         run: python3 evals/run_evals.py
 
       - name: Ruff lint (Python)
-        run: pipx run ruff check . || pip install ruff && ruff check .
+        run: |
+          pip install ruff
+          ruff check .
 
       - name: Dataform compile (only if a Dataform project exists)
         run: |
