@@ -90,6 +90,9 @@ A commit that breaks them fails the build for everyone — agent or human.
   through Dataform/Composer release configs — never touched manually.
 - Naming: datasets `{layer}_{domain}`; DAGs `{domain}__{pipeline}`; Cloud Run
   jobs `ingest-{domain}-{source}`.
+- **Python:** whenever Python is needed (ingestion jobs, scripts, tooling),
+  always create/use a virtualenv at **`.venv/`** — never install globally.
+  `.venv/` is gitignored. See the `managing-python-dependencies` skill.
 
 ## Org overrides (read before creating assets)
 

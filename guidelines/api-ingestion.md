@@ -35,6 +35,8 @@ ingestion/cloudrun/common/{base.py,gcs_writer.py}
   `overrides`; static config on the job.
 - Log to stdout/stderr (captured by Cloud Logging); exit 0 on success, non-zero
   on failure.
+- **Local dev:** develop and test the job inside a `.venv/` virtualenv (per
+  AGENTS.md) — never install dependencies globally.
 
 ## Container
 

@@ -59,7 +59,8 @@ analytics-factory-sandbox/
 2. **One file per table** (Dataform) and **one DAG per file** (Airflow).
 3. **No cross-layer imports** — `ingestion/`, `transformation/`, `orchestration/`
    are independent.
-4. Local Python venvs are always `.venv/` (gitignored).
+4. **Python:** whenever Python is needed, always create/use a virtualenv at
+   `.venv/` — never install globally (`.venv/` is gitignored).
 
 ## New domain checklist
 
