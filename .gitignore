@@ -4,6 +4,16 @@
 # local files
 *.local.*
 
+# agentic platforms
+.antigravitycli/
+
+# data agent kit
+.agents/
+
+# python
+.venv/
+*.pyc
+
 # terraform
 **/.terraform/
 *.tfstate
