@@ -1,0 +1,27 @@
+# Local enforcement of the harness guardrails (AGENTS.md non-negotiable rules).
+# Install once:  pip install pre-commit && pre-commit install
+# The same checks run in CI (.github/workflows/ci.yml) as the authoritative gate.
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+      - id: detect-private-key
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.9.4
+    hooks:
+      - id: ruff            # lint Python (ingestion jobs, DAGs, tools)
+
+  - repo: local
+    hooks:
+      - id: harness-checks
+        name: harness guardrails (forbidden patterns + Dataform rules)
+        entry: python3 tools/checks/run_checks.py
+        language: system
+        pass_filenames: true
+        files: '\.(sqlx|sql|py|sh|js|ts|json|ya?ml|tf)$'
+        exclude: '^evals/cases/'   # deliberately-bad fixtures; tested by run_evals.py

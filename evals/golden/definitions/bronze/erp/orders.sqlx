@@ -1,0 +1,13 @@
+config {
+  type: "incremental",
+  schema: "bronze_erp",
+  name: "orders",
+  description: "Cópia bruta e materializada dos pedidos do ERP, preservada sem transformação (append-only).",
+  bigquery: { partitionBy: "DATE(_ingestion_timestamp)" },
+  tags: ["bronze", "erp", "incremental"]
+}
+
+SELECT
+  CURRENT_TIMESTAMP() AS _ingestion_timestamp,
+  *
+FROM ${ref("orders_raw")}

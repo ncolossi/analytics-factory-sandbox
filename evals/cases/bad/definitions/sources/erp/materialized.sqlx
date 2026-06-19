@@ -1,0 +1,8 @@
+config {
+  type: "table",
+  schema: "landing_erp",
+  name: "orders_bad_source",
+  description: "Caso ruim: source materializada em vez de declaração."
+}
+
+SELECT 1 AS x
