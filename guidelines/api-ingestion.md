@@ -14,6 +14,10 @@
 3. **Secrets via Secret Manager** mounted on the job (`--set-secrets`). Never in
    env vars, code, or the image.
 4. The ingestion SA writes to the **landing bucket only** — never to BigQuery.
+5. **Provenance is recorded downstream.** The bronze table that materializes this
+   source must declare `source_system` and `raw_format` in its `/* governance */`
+   header, matching this job's actual source and landing format (e.g. `JSONL`).
+   See [data-governance.md](data-governance.md).
 
 ## Layout & naming
 

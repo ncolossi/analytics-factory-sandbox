@@ -1,3 +1,7 @@
+/* governance
+data_owners: [Equipe de Vendas <sales-data@corp.com>]
+data_stewards: [maria.steward@corp.com]
+*/
 config {
   type: "incremental",
   schema: "silver_sales",

@@ -40,9 +40,30 @@ default_args = {
 ## Pipeline shape
 
 Task groups: **(extraction →) raw load (GCS→landing/source) → Dataform
-(bronze → silver → gold)**. Pattern:
+(bronze → silver → gold) → tag_governance**. Pattern:
 `compile_{layer}` (`DataformCreateCompilationResultOperator`, `git_commitish:
 main` for prod) `>> run_{layer}` (`DataformCreateWorkflowInvocationOperator`).
+
+The final **`tag_governance`** task runs after the last Dataform layer and
+attaches Dataplex aspects to the tables it just (re)created — keeping prod
+metadata in sync without manual steps. Run `tools/governance/apply_aspects.py`
+(scoped to the domain's `.sqlx` files) against the env's project, e.g.:
+
+```python
+tag_governance = BashOperator(
+    task_id="tag_governance",
+    bash_command=(
+        "python3 $AIRFLOW_HOME/dags/common/apply_aspects.py "
+        "--project {{ var.value.gcp_project }} "
+        "transformation/dataform/definitions/{bronze,silver,gold}/sales"
+    ),
+)
+run_gold >> tag_governance
+```
+
+Ship `apply_aspects.py` + `aspect_model.py` with the DAGs (or run via the same
+image); never hand-run them against prod. See
+[data-governance.md](data-governance.md).
 
 Filter each invocation by tags + resolve upstream automatically:
 

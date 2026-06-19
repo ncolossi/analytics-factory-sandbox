@@ -19,6 +19,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import forbidden_patterns  # noqa: E402
 import validate_dataform  # noqa: E402
+import validate_governance  # noqa: E402
 
 
 def main(argv):
@@ -28,6 +29,7 @@ def main(argv):
     findings = []
     findings += forbidden_patterns.find_findings(paths)
     findings += validate_dataform.find_findings(paths)
+    findings += validate_governance.find_findings(paths)
 
     errors = [f for f in findings if f["severity"] == "error"]
     warns = [f for f in findings if f["severity"] == "warn"]

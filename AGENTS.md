@@ -38,6 +38,7 @@ it. Invoke the right skill, then apply this repo's **org overrides** in
 | DAGs / scheduling / Composer | `gcp-pipeline-orchestration` |
 | Provision GCP resources | `gcp-pipeline-resource-provisioning` |
 | Discover existing GCP data assets | `discovering-gcp-data-assets` |
+| Data governance / catalog aspects (Dataplex) | `knowledge-catalog` |
 | Data quality / cleaning | `data-autocleaning` |
 | Composer is failing | `gcp-composer-troubleshooting` |
 | Auth / credentials problems | `gcloud-auth-verification` |
@@ -80,6 +81,11 @@ A commit that breaks them fails the build for everyone — agent or human.
    Connections.
 8. **No cross-layer imports.** `ingestion/`, `transformation/`, `orchestration/`
    are independent.
+9. **Every lake table carries governance aspects.** Each materialized
+   bronze/silver/gold `.sqlx` declares a `/* governance */` header; transform and
+   ingestion work must populate it, and tables get tagged in Dataplex after
+   creation/modification (dev: `tools/governance/apply_aspects.py`; prod: the
+   Composer `tag_governance` task). See `guidelines/data-governance.md`.
 
 ## Environment defaults
 
@@ -102,6 +108,7 @@ A commit that breaks them fails the build for everyone — agent or human.
 | Dataform deltas (layout, assertions, incremental) | `guidelines/transformations.md` |
 | Composer/Airflow deltas | `guidelines/orchestration.md` |
 | Cloud Run ingestion deltas | `guidelines/api-ingestion.md` |
+| Governance, Dataplex aspects, catalog | `guidelines/data-governance.md` |
 | GCP topology, IAM, service accounts | `guidelines/project-topology.md` |
 | Mono-repo file placement | `guidelines/repo-structure.md` |
 

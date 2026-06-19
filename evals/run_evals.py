@@ -20,6 +20,7 @@ sys.path.insert(0, os.path.join(REPO_ROOT, "tools", "checks"))
 
 import forbidden_patterns  # noqa: E402
 import validate_dataform  # noqa: E402
+import validate_governance  # noqa: E402
 
 GOLDEN_DIR = os.path.join(REPO_ROOT, "evals", "golden")
 BAD_DIR = os.path.join(REPO_ROOT, "evals", "cases", "bad")
@@ -31,6 +32,7 @@ NEGATIVE_CASES = {
     "definitions/sources/erp/materialized.sqlx": "sources-declaration-only",
     "definitions/silver/sales/missing_assertions.sqlx": "assertions-required",
     "definitions/staging/sales/stg_table.sqlx": "staging-view-only",
+    "definitions/gold/sales/missing_governance.sqlx": "governance-header-required",
     "scripts/copy.sh": "no-bq-cp",
     "scripts/leak.py": "secret-assignment",
 }
@@ -38,7 +40,8 @@ NEGATIVE_CASES = {
 
 def _all_findings(paths):
     return (forbidden_patterns.find_findings(paths)
-            + validate_dataform.find_findings(paths))
+            + validate_dataform.find_findings(paths)
+            + validate_governance.find_findings(paths))
 
 
 def _walk(root):

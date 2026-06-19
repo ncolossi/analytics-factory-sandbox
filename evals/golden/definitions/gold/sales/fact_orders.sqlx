@@ -1,3 +1,8 @@
+/* governance
+data_owners: [Equipe de Vendas <sales-data@corp.com>]
+data_stewards: [maria.steward@corp.com]
+data_sensitivity: CONFIDENTIAL
+*/
 config {
   type: "table",
   schema: "gold_sales",

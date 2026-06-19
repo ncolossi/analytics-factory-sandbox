@@ -1,3 +1,9 @@
+/* governance
+data_owners: [Equipe de Dados ERP <erp-data@corp.com>]
+data_stewards: [maria.steward@corp.com]
+source_system: ERP
+raw_format: JSONL
+*/
 config {
   type: "incremental",
   schema: "bronze_erp",

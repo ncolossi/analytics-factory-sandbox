@@ -1,0 +1,20 @@
+-- NEGATIVE fixture: a valid gold table with NO /* governance */ header.
+-- Must trip: governance-header-required (data-governance rule).
+config {
+  type: "table",
+  schema: "gold_sales",
+  name: "fact_orders_ungoverned",
+  description: "Tabela fato sem cabeçalho de governança (fixture negativa).",
+  columns: {
+    order_id: "Identificador único do pedido de venda, originado do ERP.",
+    _last_updated_at: "Timestamp UTC da última execução do pipeline."
+  },
+  bigquery: { partitionBy: "DATE(order_date)" },
+  tags: ["gold", "sales", "fact"],
+  assertions: { uniqueKey: ["order_id"], nonNull: ["order_id"] }
+}
+
+SELECT
+  o.order_id,
+  CURRENT_TIMESTAMP() AS _last_updated_at
+FROM ${ref("silver_sales", "orders")} AS o

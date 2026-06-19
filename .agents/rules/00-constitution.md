@@ -8,6 +8,7 @@ Key non-negotiables (see AGENTS.md for the full list, enforced by
 `tools/checks/`): Dataform is the only BigQuery writer; never hardcode project
 IDs / table names; bronze is append-only; silver & gold need assertions; every
 dataset/table/column description is written in **Portuguese**; no secrets in
-code; no cross-layer imports.
+code; no cross-layer imports; every lake table carries a `/* governance */`
+header and is tagged with Dataplex aspects (see `guidelines/data-governance.md`).
 
 Run `/review` and `/run-evals` before considering a task done.

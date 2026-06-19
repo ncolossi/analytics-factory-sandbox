@@ -21,6 +21,11 @@
 6. **Descriptions in Portuguese** on every table; on every silver/gold column
    (`columns` block). Explain business meaning, categorical values, currency,
    source.
+7. **Governance header** on every materialized bronze/silver/gold table — a
+   `/* governance */` comment block (outside `config {}`) with the layer's
+   required fields. See [data-governance.md](data-governance.md). Tables are
+   tagged in Dataplex via `tools/governance/apply_aspects.py` (dev) / the
+   `tag_governance` Composer task (prod).
 
 ## Layout (mono-repo)
 
@@ -69,6 +74,12 @@ config {
 
 ```sqlx
 -- definitions/bronze/erp/orders.sqlx  (materialized, append-only)
+/* governance
+data_owners: [Equipe de Dados ERP <erp-data@corp.com>]
+data_stewards: [maria.steward@corp.com]
+source_system: ERP
+raw_format: JSONL
+*/
 config {
   type: "incremental",
   schema: "bronze_erp",
@@ -82,9 +93,13 @@ SELECT CURRENT_TIMESTAMP() AS _ingestion_timestamp, *
 FROM ${ref("orders_raw")}
 ```
 
-## Minimal silver example (note Portuguese descriptions)
+## Minimal silver example (note Portuguese descriptions + governance header)
 
 ```sqlx
+/* governance
+data_owners: [Equipe de Vendas <sales-data@corp.com>]
+data_stewards: [maria.steward@corp.com]
+*/
 config {
   type: "incremental",
   schema: "silver_sales",

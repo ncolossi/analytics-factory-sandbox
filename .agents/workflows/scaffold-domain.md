@@ -6,8 +6,9 @@ constitution. **Read [AGENTS.md](../../AGENTS.md) and the relevant
 
 Ask me for: the domain name, the source(s) (API or existing GCS/BigQuery), the
 entities to model, **which layers** to build (bronze→silver→gold or a subset),
-and whether to **orchestrate** (a scheduled Composer DAG) or just do a **one-off
-data movement** (run once, no DAG).
+whether to **orchestrate** (a scheduled Composer DAG) or just do a **one-off data
+movement** (run once, no DAG), and the **governance** inputs (data owners, data
+stewards, source system + raw format for bronze, data sensitivity for gold).
 
 Then, using the routed skills (do not hand-write what a skill already does):
 
@@ -26,7 +27,14 @@ Then, using the routed skills (do not hand-write what a skill already does):
 3. **Orchestration** (only if a scheduled pipeline was requested) — use the
    `gcp-pipeline-orchestration` skill. Create
    `orchestration/airflow/dags/{domain}/daily_refresh.py` (`{domain}__daily_refresh`)
-   per [guidelines/orchestration.md](../../guidelines/orchestration.md).
+   per [guidelines/orchestration.md](../../guidelines/orchestration.md). Add the
+   final `tag_governance` task so prod tables stay tagged.
+4. **Governance** — use the `knowledge-catalog` skill. Add a `/* governance */`
+   header to every materialized bronze/silver/gold `.sqlx` (owners, stewards;
+   `source_system`+`raw_format` on bronze; `data_sensitivity` on gold) per
+   [guidelines/data-governance.md](../../guidelines/data-governance.md). After the
+   tables exist in dev, attach aspects:
+   `python3 tools/governance/apply_aspects.py transformation/dataform/definitions/{bronze,silver,gold}/{domain}`.
 
 Work in the **dev project**. When done, run `/review`, then `/run-evals`. Report
 what you created and any guardrail findings.

@@ -7,9 +7,6 @@
 # agentic platforms
 .antigravitycli/
 
-# data agent kit
-.agents/
-
 # python
 .venv/
 *.pyc
