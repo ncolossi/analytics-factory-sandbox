@@ -1,22 +1,29 @@
 #!/usr/bin/env python3
 """Attach Dataplex governance aspects to BigQuery tables — a thin gcloud wrapper.
 
-For each materialized lake table (.sqlx under definitions/{bronze,silver,gold}),
-this derives the aspect values from the file's `/* governance */` header + path
-(see aspect_model.py) and attaches them to the table's auto-cataloged BigQuery
-entry via `gcloud dataplex entries update --update-aspects`.
+For each materialized lake table, this derives the aspect values (see
+aspect_model.py) and attaches them to the table's auto-cataloged BigQuery entry
+via `gcloud dataplex entries update --update-aspects`.
+
+Two input modes:
+  - **SQLX** (dev / local): parse `.sqlx` headers directly from the repo.
+  - **Manifest** (`--manifest`): read a precomputed governance_manifest.json —
+    used by the Composer `tag_governance` task, where the SQLX tree is NOT on the
+    worker. Generate the manifest in CI with emit_manifest.py and ship it (plus
+    aspect_model.py + this file) into the Composer bucket. See
+    guidelines/orchestration.md and guidelines/data-governance.md.
 
 It NEVER creates aspect TYPES — those are Terraform-managed in location `global`.
 By default it targets the **dev** project only (agents never touch prod; prod is
-tagged by the Composer `tag_governance` task — see guidelines/orchestration.md).
+tagged by the Composer task).
 
 Usage:
   python3 tools/governance/apply_aspects.py [--dry-run] [paths...]
-  python3 tools/governance/apply_aspects.py --project P --region R [paths...]
+  python3 tools/governance/apply_aspects.py --manifest M --project P --region R
 
-With no paths, scans transformation/dataform/definitions. `--dry-run` prints the
-resolved aspect payloads (and the gcloud commands) without calling GCP — safe and
-network-free, so it works on the eval fixtures too.
+With no paths/manifest, scans transformation/dataform/definitions. `--dry-run`
+prints the resolved aspect payloads without calling GCP — safe and network-free,
+so it works on the eval fixtures too.
 
 Requires: gcloud (authenticated), the 5 custom aspect types deployed (Terraform),
 and the BigQuery tables to already exist (Dataform/Composer create them first).
@@ -105,6 +112,9 @@ def apply_one(parsed, project, region, project_number, code_repository, dry_run)
 def main(argv):
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("paths", nargs="*", help="specific .sqlx files (default: all)")
+    ap.add_argument("--manifest",
+                    help="read tables from a governance_manifest.json instead of "
+                         "parsing .sqlx (used by the Composer task)")
     ap.add_argument("--project", default=DEFAULT_PROJECT,
                     help=f"GCP project (default: {DEFAULT_PROJECT}, the dev project)")
     ap.add_argument("--region", default=DEFAULT_REGION,
@@ -119,9 +129,14 @@ def main(argv):
     if not args.dry_run:
         project_number = resolve_project_number(args.project)
 
+    if args.manifest:
+        records = aspect_model.load_manifest(args.manifest)
+    else:
+        records = [aspect_model.parse_sqlx(f)
+                   for f in aspect_model.iter_sqlx(args.paths or None)]
+
     governed = 0
-    for full in aspect_model.iter_sqlx(args.paths or None):
-        parsed = aspect_model.parse_sqlx(full)
+    for parsed in records:
         if apply_one(parsed, args.project, args.region, project_number,
                      args.code_repository, args.dry_run):
             governed += 1

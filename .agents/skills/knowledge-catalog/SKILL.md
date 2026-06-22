@@ -73,9 +73,18 @@ Sources (`type: declaration`) and staging (views) are **not** tagged.
    python3 tools/governance/apply_aspects.py              # tag the dev project
    ```
    Defaults to the **dev** project (`cymbal-data-platform-dev`) and region
-   `southamerica-east1`. Pass `--project`/`--region` to override.
-4. **Prod** is tagged automatically by the Composer `tag_governance` task at the
-   end of the pipeline — never run the script against prod by hand.
+   `southamerica-east1`. Pass `--project`/`--region` to override. In dev this
+   parses the `.sqlx` directly — no manifest needed.
+4. **Prod** is tagged automatically by the Composer `tag_governance` task, which
+   reads a **manifest** (the worker has no `.sqlx`). Regenerate it whenever a
+   governance header changes:
+   ```bash
+   python3 tools/governance/emit_manifest.py   # -> tools/governance/governance_manifest.json
+   ```
+   CI fails on a stale manifest. The deploy ships the manifest + `aspect_model.py`
+   + `apply_aspects.py` into the Composer bucket (`dags/governance/`). Never run
+   tagging against prod by hand. See
+   [guidelines/orchestration.md](../../../guidelines/orchestration.md).
 
 ## Aspect types: do NOT create them here
 

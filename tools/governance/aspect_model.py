@@ -40,11 +40,13 @@ data-quality scans, not by this code (see guidelines/data-governance.md).
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 DEFINITIONS = os.path.join("transformation", "dataform", "definitions")
+MANIFEST_SCHEMA_VERSION = 1
 
 # Layer -> medallion_tier enum value.
 LAYER_TO_TIER = {"bronze": "BRONZE", "silver": "SILVER", "gold": "GOLD"}
@@ -286,3 +288,34 @@ def build_aspects(parsed, project_number, code_repository):
         aspects[prefix + "domain"] = {"data": {"domain_name": domain}}
 
     return aspects
+
+
+# --- manifest (env-neutral bridge: generate in CI, apply in Composer) --------
+
+def build_manifest(paths=None):
+    """Build the env-neutral governance manifest from the SQLX tree.
+
+    A manifest record is exactly a `parse_sqlx()` output, so `build_aspects()`
+    consumes it unchanged at apply time — no SQLX needed on the applier (e.g. a
+    Composer worker). Only materialized lake tables are included. Records are
+    sorted by path so the file is deterministic (CI can diff it for drift).
+    """
+    tables = [p for p in (parse_sqlx(f) for f in iter_sqlx(paths)) if _governed(p)]
+    tables.sort(key=lambda r: r["path"])
+    return {
+        "schema_version": MANIFEST_SCHEMA_VERSION,
+        "source": DEFINITIONS.replace(os.sep, "/"),
+        "tables": tables,
+    }
+
+
+def load_manifest(path):
+    """Load a manifest file and return its table records (validates the version)."""
+    with open(path, "r", encoding="utf-8") as fh:
+        data = json.load(fh)
+    ver = data.get("schema_version")
+    if ver != MANIFEST_SCHEMA_VERSION:
+        raise ValueError(
+            f"unsupported manifest schema_version {ver!r} "
+            f"(expected {MANIFEST_SCHEMA_VERSION})")
+    return data.get("tables", [])

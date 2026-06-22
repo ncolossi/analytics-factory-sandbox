@@ -21,7 +21,7 @@
 | Service Account | Purpose | Key roles |
 |-----------------|---------|-----------|
 | `dataform-sa` | Run Dataform | `bigquery.dataEditor`, `bigquery.jobUser` |
-| `composer-sa` | Orchestrate | `composer.worker`, `dataform.editor`, `bigquery.jobUser`, `run.invoker` |
+| `composer-sa` | Orchestrate | `composer.worker`, `dataform.editor`, `bigquery.jobUser`, `run.invoker`, `dataplex.catalogEditor` (for the `tag_governance` task) |
 | `ingestion-sa` | Run ingestion jobs | `storage.objectCreator` (landing), `secretmanager.secretAccessor` |
 
 - No user account writes directly to any lake dataset — all writes go through

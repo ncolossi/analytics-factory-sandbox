@@ -46,23 +46,32 @@ main` for prod) `>> run_{layer}` (`DataformCreateWorkflowInvocationOperator`).
 
 The final **`tag_governance`** task runs after the last Dataform layer and
 attaches Dataplex aspects to the tables it just (re)created — keeping prod
-metadata in sync without manual steps. Run `tools/governance/apply_aspects.py`
-(scoped to the domain's `.sqlx` files) against the env's project, e.g.:
+metadata in sync without manual steps.
+
+**The worker has no `.sqlx`.** Composer only syncs `dags/`/`plugins/`/`data/`;
+the Dataform definitions live in the Dataform service, never on the worker. So
+the task reads a **precomputed manifest** instead of parsing SQLX:
+`emit_manifest.py` runs in CI (and is drift-checked there), and the deploy ships
+`governance_manifest.json` + `aspect_model.py` + `apply_aspects.py` into the
+Composer bucket under `dags/governance/`.
 
 ```python
 tag_governance = BashOperator(
     task_id="tag_governance",
     bash_command=(
-        "python3 $AIRFLOW_HOME/dags/common/apply_aspects.py "
+        "python3 $AIRFLOW_HOME/dags/governance/apply_aspects.py "
+        "--manifest $AIRFLOW_HOME/dags/governance/governance_manifest.json "
         "--project {{ var.value.gcp_project }} "
-        "transformation/dataform/definitions/{bronze,silver,gold}/sales"
+        "--region southamerica-east1"
     ),
 )
 run_gold >> tag_governance
 ```
 
-Ship `apply_aspects.py` + `aspect_model.py` with the DAGs (or run via the same
-image); never hand-run them against prod. See
+The manifest is env-neutral; `--project` selects dev/prod and the script resolves
+the project number + code repo at run time. `composer-sa` needs
+`roles/dataplex.catalogEditor` (see [project-topology.md](project-topology.md)).
+Never hand-run aspect tagging against prod. See
 [data-governance.md](data-governance.md).
 
 Filter each invocation by tags + resolve upstream automatically:

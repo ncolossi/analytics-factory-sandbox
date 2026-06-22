@@ -30,6 +30,12 @@ jobs:
       - name: Evals (golden + negative self-test)
         run: python3 evals/run_evals.py
 
+      - name: Governance manifest in sync
+        run: |
+          python3 tools/governance/emit_manifest.py
+          git diff --exit-code tools/governance/governance_manifest.json \
+            || { echo "governance_manifest.json is stale — run tools/governance/emit_manifest.py and commit."; exit 1; }
+
       - name: Ruff lint (Python)
         run: |
           pip install ruff

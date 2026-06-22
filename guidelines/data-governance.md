@@ -15,9 +15,9 @@
    so governance values go in a leading comment block (see below).
 3. **Aspect *types* are Terraform-managed — never created from this repo.** They
    already exist in location `global`. We attach **values** only.
-4. **Tagging is automated.** Dev: run `tools/governance/apply_aspects.py`. Prod:
-   the Composer `tag_governance` task (after the Dataform gold run). Agents tag
-   only the **dev** project.
+4. **Tagging is automated, via a manifest.** Aspects are attached by the Dataplex
+   API (gcloud), never from SQL. Dev: run `tools/governance/apply_aspects.py`.
+   Prod: the Composer `tag_governance` task. Agents tag only the **dev** project.
 
 ## The aspect catalog
 
@@ -60,6 +60,32 @@ config { type: "incremental", schema: "silver_sales", name: "orders", ... }
 | Gold | `data_owners`, `data_stewards`, `data_sensitivity` |
 
 Sources (`declaration`) and staging (views) are not tagged.
+
+## How tagging runs (the manifest)
+
+Aspects are a Dataplex **control-plane** operation — they can't be set from
+Dataform/BigQuery SQL. They're attached by `apply_aspects.py` (a `gcloud` wrapper)
+right after the tables exist. Because the Composer worker has no `.sqlx` (only
+`dags/` syncs), tagging runs off a precomputed, env-neutral **manifest**:
+
+```
+emit_manifest.py  (CI)   ──>  tools/governance/governance_manifest.json
+                                      │  shipped into the Composer bucket
+                                      ▼            dags/governance/
+apply_aspects.py --manifest ──>  gcloud dataplex entries update  (dev & prod)
+```
+
+- **Generate:** `python3 tools/governance/emit_manifest.py` parses every governed
+  `.sqlx` once and writes `governance_manifest.json` (a list of
+  `{layer, schema, name, header, …}` records). It refuses to emit on any invalid
+  header. CI regenerates it and **fails on drift**, so the committed manifest is
+  always in sync with the SQLX.
+- **Apply (dev):** `python3 tools/governance/apply_aspects.py` — parses SQLX
+  directly (no manifest needed locally), `--dry-run` to preview.
+- **Apply (prod):** the Composer `tag_governance` task runs
+  `apply_aspects.py --manifest …/governance_manifest.json --project <env>`. The
+  manifest is env-neutral; the project number, region, and code repo are bound at
+  run time. See [orchestration.md](orchestration.md).
 
 ## Provenance comes from ingestion
 
