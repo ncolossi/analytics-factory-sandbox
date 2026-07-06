@@ -1,0 +1,48 @@
+config {
+  type: "incremental",
+  schema: "silver_ons_infraestrutura_sistema",
+  name: "subestacoes",
+  description: "Cadastro de subestações e barramentos do ONS, limpos e deduplicados.",
+  uniqueKey: ["substation_id", "busbar_number"],
+  columns: {
+    substation_id: "Identificador abreviado único da subestação.",
+    busbar_number: "Número do barramento físico na subestação.",
+    subsystem_id: "Identificador do subsistema regional.",
+    subsystem_name: "Nome do subsistema (ex: SUL, NORDESTE, etc).",
+    state_id: "Sigla do estado da Federação onde se localiza a subestação.",
+    state_name: "Nome completo do estado.",
+    main_agent_name: "Nome do agente principal ou proprietário da subestação.",
+    substation_name: "Nome completo descritivo da subestação.",
+    voltage_kv: "Tensão nominal da subestação, em kV.",
+    station_id: "Identificador específico da estação física.",
+    latitude: "Latitude geográfica da subestação (graus decimais).",
+    longitude: "Longitude geográfica da subestação (graus decimais).",
+    _loaded_at: "Timestamp UTC da última carga na camada silver.",
+    _source_table: "Tabela de origem dos dados brutos."
+  },
+  bigquery: { partitionBy: "DATE(_loaded_at)" },
+  tags: ["silver", "ons_infraestrutura_sistema", "incremental"],
+  assertions: {
+    uniqueKey: ["substation_id", "busbar_number"],
+    nonNull: ["substation_id", "substation_name"]
+  }
+}
+
+SELECT
+  CURRENT_TIMESTAMP() AS _loaded_at,
+  '${ref("bronze_ons_infraestrutura_sistema", "subestacao")}' AS _source_table,
+  TRIM(id_subestacao) AS substation_id,
+  COALESCE(TRIM(num_barra), 'N/A') AS busbar_number,
+  TRIM(id_subsistema) AS subsystem_id,
+  TRIM(nom_subsistema) AS subsystem_name,
+  TRIM(id_estado) AS state_id,
+  TRIM(nom_estado) AS state_name,
+  TRIM(nom_agente_principal) AS main_agent_name,
+  TRIM(nom_subestacao) AS substation_name,
+  SAFE_CAST(val_niveltensao AS NUMERIC) AS voltage_kv,
+  TRIM(id_estacao) AS station_id,
+  SAFE_CAST(val_latitude AS FLOAT64) AS latitude,
+  SAFE_CAST(val_longitude AS FLOAT64) AS longitude
+FROM ${ref("bronze_ons_infraestrutura_sistema", "subestacao")}
+${ when(incremental(), `WHERE _ingestion_timestamp > (SELECT MAX(_loaded_at) FROM ${self()})`) }
+QUALIFY ROW_NUMBER() OVER (PARTITION BY id_subestacao, num_barra ORDER BY _ingestion_timestamp DESC) = 1

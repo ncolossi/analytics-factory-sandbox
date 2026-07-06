@@ -1,0 +1,48 @@
+config {
+  type: "incremental",
+  schema: "bronze_ons_infraestrutura_sistema",
+  name: "subestacao",
+  description: "Cópia bruta e materializada dos dados cadastrais de subestações do ONS, preservada sem transformação (append-only).",
+  bigquery: { partitionBy: "DATE(_ingestion_timestamp)" },
+  tags: ["bronze", "ons_infraestrutura_sistema", "incremental"],
+  columns: {
+    _ingestion_timestamp: "Timestamp UTC da ingestão e materialização da tabela na camada bronze.",
+    _source_file: "Caminho do recurso GCP (tabela BigQuery) de origem dos dados.",
+    _batch_id: "Identificador único do lote (batch) de carga baseado em timestamp.",
+    id_subsistema: "Subsistema",
+    nom_subsistema: "Nome do subsistema",
+    id_estado: "Sigla do estado",
+    nom_estado: "Nome do estado",
+    nom_agente_principal: "Nome do agente principal da subestação",
+    id_subestacao: "Identificador da subestação",
+    nom_subestacao: "Nome da subestação",
+    val_niveltensao: "Tensão nominal, em kV",
+    id_estacao: "Identificador da estação",
+    num_barra: "Número do Barramento",
+    val_latitude: "Latitude da Subestação",
+    val_longitude: "Longitude da Subestação",
+    dt: "Data da partição (fallback Hive)",
+    row_hash: "Hash para deduplicação (FARM_FINGERPRINT)"
+  }
+}
+
+SELECT
+  CURRENT_TIMESTAMP() AS _ingestion_timestamp,
+  'projects/cymbal-data-platform-dev/datasets/ons_infraestrutura_sistema/tables/subestacao' AS _source_file,
+  FORMAT_TIMESTAMP('%Y%m%d%H%M%S', CURRENT_TIMESTAMP()) AS _batch_id,
+  id_subsistema,
+  nom_subsistema,
+  id_estado,
+  nom_estado,
+  nom_agente_principal,
+  id_subestacao,
+  nom_subestacao,
+  val_niveltensao,
+  id_estacao,
+  num_barra,
+  val_latitude,
+  val_longitude,
+  dt,
+  row_hash
+FROM ${ref("ons_infraestrutura_sistema", "subestacao")}
+${when(incremental(), `WHERE dt > (SELECT MAX(dt) FROM ${self()})`)}

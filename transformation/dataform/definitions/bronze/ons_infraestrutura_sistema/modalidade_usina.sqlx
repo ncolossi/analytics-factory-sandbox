@@ -1,0 +1,42 @@
+config {
+  type: "incremental",
+  schema: "bronze_ons_infraestrutura_sistema",
+  name: "modalidade_usina",
+  description: "Cópia bruta e materializada das modalidades de usinas do ONS, preservada sem transformação (append-only).",
+  bigquery: { partitionBy: "DATE(_ingestion_timestamp)" },
+  tags: ["bronze", "ons_infraestrutura_sistema", "incremental"],
+  columns: {
+    _ingestion_timestamp: "Timestamp UTC da ingestão e materialização da tabela na camada bronze.",
+    _source_file: "Caminho do recurso GCP (tabela BigQuery) de origem dos dados.",
+    _batch_id: "Identificador único do lote (batch) de carga baseado em timestamp.",
+    nom_usina: "Nome da Usina.",
+    ceg: "Código Único do Empreendimento de Geração (CEG), estabelecido pela ANEEL.",
+    nom_modalidadeoperacao: "Nome da Modalidade de Operação da Usina.",
+    val_potenciaautorizada: "Valor da Potência Nominal Autorizada em MW.",
+    sgl_centrooperacao: "Sigla do Centro de Operação da Usina.",
+    nom_pontoconexao: "Nome do Ponto de Conexão.",
+    id_estado: "Sigla do Estado Onde Está Localizada a Usina.",
+    nom_estado: "Nome do Estado.",
+    sts_aneel: "Status da Usina perante a ANEEL. Os valores possíveis são A (ATIVO), I (INATIVO), P (PREVISTO), C (CANCELADO), O (OUTROS).",
+    dt: "Data da partição (fallback Hive).",
+    row_hash: "Hash para deduplicação (FARM_FINGERPRINT)."
+  }
+}
+
+SELECT
+  CURRENT_TIMESTAMP() AS _ingestion_timestamp,
+  'projects/cymbal-data-platform-dev/datasets/ons_infraestrutura_sistema/tables/modalidade_usina' AS _source_file,
+  FORMAT_TIMESTAMP('%Y%m%d%H%M%S', CURRENT_TIMESTAMP()) AS _batch_id,
+  nom_usina,
+  ceg,
+  nom_modalidadeoperacao,
+  val_potenciaautorizada,
+  sgl_centrooperacao,
+  nom_pontoconexao,
+  id_estado,
+  nom_estado,
+  sts_aneel,
+  dt,
+  row_hash
+FROM ${ref("ons_infraestrutura_sistema", "modalidade_usina")}
+${when(incremental(), `WHERE dt > (SELECT MAX(dt) FROM ${self()})`)}

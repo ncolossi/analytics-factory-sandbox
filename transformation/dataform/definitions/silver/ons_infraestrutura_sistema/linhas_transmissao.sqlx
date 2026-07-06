@@ -1,0 +1,87 @@
+config {
+  type: "incremental",
+  schema: "silver_ons_infraestrutura_sistema",
+  name: "linhas_transmissao",
+  description: "Cadastro de linhas de transmissão do ONS, limpas, tipadas e deduplicadas.",
+  uniqueKey: ["equipment_code", "line_name"],
+  columns: {
+    equipment_code: "Código do equipamento/unidade geradora da linha de transmissão.",
+    line_name: "Nome descritivo da linha de transmissão.",
+    subsystem_de_id: "Identificador do subsistema de origem da linha.",
+    subsystem_de_name: "Nome do subsistema de origem da linha.",
+    subsystem_para_id: "Identificador do subsistema de destino da linha.",
+    subsystem_para_name: "Nome do subsistema de destino da linha (NULL para ramais).",
+    state_de_id: "Sigla do estado de origem do terminal de transmissão.",
+    state_de_name: "Nome do estado de origem.",
+    state_para_id: "Sigla do estado de destino do terminal de transmissão.",
+    state_para_name: "Nome do estado de destino.",
+    substation_de_name: "Nome da subestação de origem (Terminal DE).",
+    substation_para_name: "Nome da subestação de destino (Terminal PARA).",
+    voltage_kv: "Nível de tensão nominal da linha de transmissão, em kV.",
+    network_type: "Nome do tipo de rede da linha de transmissão.",
+    line_type: "Tipo físico da linha (AC, DC ou ramal).",
+    agent_owner_name: "Nome do agente proprietário da linha de transmissão.",
+    operation_start_date: "Data de liberação da linha para operação pelo ONS.",
+    deactivation_date: "Data de desativação da linha de transmissão.",
+    expected_operation_date: "Data prevista para entrada em operação.",
+    length_km: "Comprimento da linha de transmissão, em quilômetros.",
+    resistance: "Resistência de sequência positiva.",
+    reactance: "Reatância de sequência positiva.",
+    shunt: "Susceptância de sequência positiva (shunt).",
+    capacity_long_no_limit_amp: "Capacidade operativa de longa duração sem fator limitante, em ampères.",
+    capacity_long_with_limit_amp: "Capacidade operativa de longa duração com fator limitante, em ampères.",
+    capacity_short_no_limit_amp: "Capacidade operativa de curta duração sem limitação, em ampères.",
+    capacity_short_with_limit_amp: "Capacidade operativa de curta duração com limitação, em ampères.",
+    busbar_de_number: "Número do barramento de origem (De).",
+    busbar_para_number: "Número do barramento de destino (Para).",
+    _loaded_at: "Timestamp UTC da última carga/atualização na camada silver.",
+    _source_table: "Tabela de origem dos dados brutos."
+  },
+  bigquery: { partitionBy: "operation_start_date" },
+  tags: ["silver", "ons_infraestrutura_sistema", "incremental"],
+  assertions: {
+    uniqueKey: ["equipment_code", "line_name"],
+    nonNull: ["equipment_code", "line_name", "substation_de_name"]
+  }
+}
+
+WITH cleaned_data AS (
+  SELECT
+    _ingestion_timestamp,
+    CURRENT_TIMESTAMP() AS _loaded_at,
+    '${ref("bronze_ons_infraestrutura_sistema", "linha_transmissao")}' AS _source_table,
+    TRIM(cod_equipamento) AS equipment_code,
+    TRIM(nom_linhadetransmissao) AS line_name,
+    TRIM(id_subsistema_terminalde) AS subsystem_de_id,
+    TRIM(nom_subsistema_terminalde) AS subsystem_de_name,
+    TRIM(id_subsistema_terminalpara) AS subsystem_para_id,
+    TRIM(nom_subsistema_terminalpara) AS subsystem_para_name,
+    TRIM(id_estado_terminalde) AS state_de_id,
+    TRIM(nom_estado_de) AS state_de_name,
+    TRIM(id_estado_terminalpara) AS state_para_id,
+    TRIM(nom_estado_para) AS state_para_name,
+    TRIM(nom_subestacao_de) AS substation_de_name,
+    TRIM(nom_subestacao_para) AS substation_para_name,
+    SAFE_CAST(val_niveltensao_kv AS NUMERIC) AS voltage_kv,
+    TRIM(nom_tipoderede) AS network_type,
+    TRIM(nom_tipolinha) AS line_type,
+    TRIM(nom_agenteproprietario) AS agent_owner_name,
+    SAFE_CAST(dat_entradaoperacao AS DATE) AS operation_start_date,
+    SAFE_CAST(dat_desativacao AS DATE) AS deactivation_date,
+    SAFE_CAST(dat_prevista AS DATE) AS expected_operation_date,
+    SAFE_CAST(val_comprimento AS FLOAT64) AS length_km,
+    SAFE_CAST(val_resistencia AS FLOAT64) AS resistance,
+    SAFE_CAST(val_reatancia AS FLOAT64) AS reactance,
+    SAFE_CAST(val_shunt AS FLOAT64) AS shunt,
+    SAFE_CAST(val_capacoperlongasemlimit AS FLOAT64) AS capacity_long_no_limit_amp,
+    SAFE_CAST(val_capacoperlongacomlimit AS FLOAT64) AS capacity_long_with_limit_amp,
+    SAFE_CAST(val_capacopercurtasemlimit AS FLOAT64) AS capacity_short_no_limit_amp,
+    SAFE_CAST(val_capacopercurtacomlimit AS FLOAT64) AS capacity_short_with_limit_amp,
+    TRIM(num_barra_de) AS busbar_de_number,
+    TRIM(num_barra_para) AS busbar_para_number
+  FROM ${ref("bronze_ons_infraestrutura_sistema", "linha_transmissao")}
+  ${ when(incremental(), `WHERE _ingestion_timestamp > (SELECT MAX(_loaded_at) FROM ${self()})`) }
+)
+
+SELECT * EXCEPT(_ingestion_timestamp) FROM cleaned_data
+QUALIFY ROW_NUMBER() OVER (PARTITION BY equipment_code, line_name ORDER BY _ingestion_timestamp DESC) = 1

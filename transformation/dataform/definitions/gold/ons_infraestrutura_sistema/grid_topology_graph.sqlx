@@ -1,0 +1,35 @@
+config {
+  type: "operations",
+  hasOutput: true,
+  schema: "gold_ons_infraestrutura_sistema",
+  name: "grid_topology_graph",
+  tags: ["gold", "ons_infraestrutura_sistema", "graph"],
+  dependencies: ["subestacoes", "linhas_transmissao", "modalidades_usinas"]
+}
+
+-- Native BigQuery Graph DDL compilation statement mapped directly to Silver
+CREATE OR REPLACE PROPERTY GRAPH ${self()}
+  NODE TABLES (
+    -- Substation Nodes
+    ${ref("silver_ons_infraestrutura_sistema", "subestacoes")} AS Substation_Nodes
+      KEY (substation_name, busbar_number)
+      LABEL Substation,
+    -- Power Plant Nodes
+    ${ref("silver_ons_infraestrutura_sistema", "modalidades_usinas")} AS Power_Plant_Nodes
+      KEY (plant_name, operation_center_sigla, connection_point_name)
+      LABEL Power_Plant
+  )
+  EDGE TABLES (
+    -- Substation-to-Substation links (Transmission Lines)
+    ${ref("silver_ons_infraestrutura_sistema", "linhas_transmissao")} AS Transmission_Line_Edges
+      KEY (equipment_code, line_name)
+      SOURCE KEY (substation_de_name, busbar_de_number) REFERENCES Substation_Nodes (substation_name, busbar_number)
+      DESTINATION KEY (substation_para_name, busbar_para_number) REFERENCES Substation_Nodes (substation_name, busbar_number)
+      LABEL Transmission_Line,
+    -- Power Plant-to-Substation basic grid connection links
+    ${ref("silver_ons_infraestrutura_sistema", "modalidades_usinas")} AS Connected_To_Edges
+      KEY (plant_name, operation_center_sigla, connection_point_name)
+      SOURCE KEY (plant_name, operation_center_sigla, connection_point_name) REFERENCES Power_Plant_Nodes (plant_name, operation_center_sigla, connection_point_name)
+      DESTINATION KEY (connected_substation_name, connected_busbar_number) REFERENCES Substation_Nodes (substation_name, busbar_number)
+      LABEL Connected_To
+  );

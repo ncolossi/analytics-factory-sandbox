@@ -1,0 +1,91 @@
+config {
+  type: "incremental",
+  schema: "silver_ons_infraestrutura_sistema",
+  name: "modalidades_usinas",
+  description: "Cadastro de usinas geradoras do ONS com suas modalidades operacionais, limpas, deduplicadas e georreferenciadas por associação de conexão.",
+  uniqueKey: ["plant_name", "operation_center_sigla", "connection_point_name"],
+  columns: {
+    plant_name: "Nome da usina geradora de energia elétrica.",
+    operation_center_sigla: "Sigla do centro de operação responsável pela usina.",
+    connection_point_name: "Nome do ponto de conexão da usina com a rede básica.",
+    ceg: "Código Único do Empreendimento de Geração (CEG) estabelecido pela ANEEL.",
+    operation_mode_name: "Nome da modalidade de operação da usina.",
+    authorized_power_mw: "Valor da potência nominal autorizada em MW.",
+    state_id: "Sigla do estado de localização da usina.",
+    state_name: "Nome do estado de localização.",
+    aneel_status: "Status da usina na ANEEL (A-Ativo, I-Inativo, P-Previsto, etc).",
+    connected_substation_name: "Nome exato da subestação de conexão correspondente na tabela de subestações.",
+    connected_busbar_number: "Número do barramento associado para conexão direta na tabela de subestações.",
+    _loaded_at: "Timestamp UTC da última carga na camada silver.",
+    _source_table: "Tabela de origem dos dados brutos."
+  },
+  bigquery: { partitionBy: "DATE(_loaded_at)" },
+  tags: ["silver", "ons_infraestrutura_sistema", "incremental"],
+  dependencies: ["subestacoes"],
+  assertions: {
+    uniqueKey: ["plant_name", "operation_center_sigla", "connection_point_name"],
+    nonNull: ["plant_name"]
+  }
+}
+
+WITH cleaned_data AS (
+  SELECT
+    _ingestion_timestamp,
+    TRIM(nom_usina) AS plant_name,
+    TRIM(sgl_centrooperacao) AS operation_center_sigla,
+    TRIM(nom_pontoconexao) AS connection_point_name,
+    TRIM(ceg) AS ceg,
+    TRIM(nom_modalidadeoperacao) AS operation_mode_name,
+    SAFE_CAST(val_potenciaautorizada AS FLOAT64) AS authorized_power_mw,
+    TRIM(id_estado) AS state_id,
+    TRIM(nom_estado) AS state_name,
+    TRIM(sts_aneel) AS aneel_status,
+    dt
+  FROM ${ref("bronze_ons_infraestrutura_sistema", "modalidade_usina")}
+  ${ when(incremental(), `WHERE _ingestion_timestamp > (SELECT MAX(_loaded_at) FROM ${self()})`) }
+),
+
+deduplicated_data AS (
+  SELECT * FROM cleaned_data
+  QUALIFY ROW_NUMBER() OVER (
+    PARTITION BY plant_name, operation_center_sigla, connection_point_name
+    ORDER BY _ingestion_timestamp DESC, dt DESC
+  ) = 1
+),
+
+matched_substation AS (
+  SELECT
+    d.plant_name,
+    d.operation_center_sigla,
+    d.connection_point_name,
+    s.substation_name,
+    s.busbar_number,
+    ROW_NUMBER() OVER (
+      PARTITION BY d.plant_name, d.operation_center_sigla, d.connection_point_name 
+      ORDER BY s.voltage_kv DESC
+    ) AS rn
+  FROM deduplicated_data d
+  LEFT JOIN ${ref("silver_ons_infraestrutura_sistema", "subestacoes")} s
+    ON INSTR(UPPER(d.connection_point_name), UPPER(s.substation_name)) > 0
+)
+
+SELECT
+  CURRENT_TIMESTAMP() AS _loaded_at,
+  '${ref("bronze_ons_infraestrutura_sistema", "modalidade_usina")}' AS _source_table,
+  d.plant_name,
+  d.operation_center_sigla,
+  d.connection_point_name,
+  d.ceg,
+  d.operation_mode_name,
+  d.authorized_power_mw,
+  d.state_id,
+  d.state_name,
+  d.aneel_status,
+  m.substation_name AS connected_substation_name,
+  m.busbar_number AS connected_busbar_number
+FROM deduplicated_data d
+LEFT JOIN matched_substation m
+  ON d.plant_name = m.plant_name
+  AND d.operation_center_sigla = m.operation_center_sigla
+  AND d.connection_point_name = m.connection_point_name
+  AND m.rn = 1
