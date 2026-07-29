@@ -95,6 +95,9 @@ on the IDE environment:
 
 -   For Antigravity, use `["job:datacloud:antigravity"]`.
 -   For VS Code, use `["job:datacloud:vscode"]`.
+-   For Gemini CLI, use `["job:datacloud:gemini-cli"]`.
+-   For Claude Code, use `["job:datacloud:claude"]`.
+-   For Codex, use `["job:datacloud:codex"]`.
 -   For any other environment, use `["job:datacloud:other"]`.
 
 #### Deployment yaml structure and syntax instruction.

@@ -7,7 +7,7 @@ description: Expertise in generating clean, correct, and efficient Dataform pipe
   up a new Dataform project or configuring workflow_settings.yaml.
 license: Apache-2.0
 metadata:
-  version: v2
+  version: v5
   publisher: google
 ---
 
@@ -100,8 +100,10 @@ Follow these steps when fulfilling Dataform-related requests:
 
 ### 3. Apply Automatic Data Cleaning and SQL Optimizations
 
-> [!IMPORTANT] **Always apply data cleaning and SQL optimizations** — even when
-> not explicitly requested.
+> [!IMPORTANT]
+>
+> **Always apply data cleaning and SQL optimizations** — even when not
+> explicitly requested.
 
 -   **Data Cleaning:**
     -   Applies to **all operations** on new and existing sources (BigQuery ↔
@@ -110,8 +112,7 @@ Follow these steps when fulfilling Dataform-related requests:
     -   If cleaning is not applied, provide **strong evidence** in the response.
     -   Include an **"Automatic Cleaning Summary"** section in every response.
 -   **SQL Optimizations:**
-    -   Follow the optimization protocol in **@skill:developing-with-bigquery**
-        strictly.
+    -   Follow the optimization protocol in **@skill:bigquery-sql** strictly.
     -   Include an **"Optimization Summary"** section when applied.
 
 ### 4. Planning guidelines
@@ -182,9 +183,11 @@ compile`, manual SQL inspection, and `bq query --dry_run`.
 
 ## Incremental / Append Operations
 
-> [!IMPORTANT] Use `type: "incremental"` for **all** append, move, or copy
-> operations targeting an **existing** BigQuery table. Never use `type:
-> "operations"` for these tasks.
+> [!IMPORTANT]
+>
+> Use `type: "incremental"` for **all** append, move, or copy operations
+> targeting an **existing** BigQuery table. Never use `type: "operations"` for
+> these tasks.
 
 | Rule                      | Detail                                           |
 | ------------------------- | ------------------------------------------------ |
